@@ -1,7 +1,7 @@
 {
   "name": "Le Mystère de Babylone",
   "short_name": "Babylone",
-  "description": "Un jeu relaxant sur une petite île : six univers, une grenouille à lunettes. Aucun traceur, sauvegarde locale.",
+  "description": "Un jeu relaxant sur une petite île : onze univers, une grenouille à lunettes. Aucun traceur, sauvegarde locale.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",

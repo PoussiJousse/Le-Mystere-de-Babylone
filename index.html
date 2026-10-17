@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Babylone">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Le Mystère de Babylone</title>
-<!-- Le Mystère de Babylone · Version 1.1 · généré le 2026-10-16
+<!-- Le Mystère de Babylone · Version 2.0 · généré le 2026-10-17
      Aucun traceur, aucun cookie, aucune requête réseau : tout reste sur l'appareil.
      three.js (MIT, Copyright 2010-2023 Three.js Authors) est inclus ci-dessous. -->
 <style>:root{
@@ -34,7 +34,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
   box-shadow:0 2px 0 rgba(0,0,0,.25);min-height:44px}
 #keysBadge{position:absolute;top:calc(14px + env(safe-area-inset-top));left:12px;background:rgba(47,38,64,.82);
   padding:8px 14px;border-radius:999px;font-size:14px;pointer-events:none}
-#hint{position:absolute;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-8px);
+#s2Badge{position:absolute;top:calc(54px + env(safe-area-inset-top));left:12px;background:rgba(115,41,130,.85);
+  padding:7px 13px;border-radius:999px;font-size:13px;pointer-events:none;max-width:62vw}
+#hint{position:absolute;top:calc(98px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-8px);
   max-width:86vw;background:rgba(251,246,238,.94);color:var(--ink);padding:10px 16px;border-radius:14px;font-size:15px;
   text-align:center;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
 #hint.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -117,6 +119,7 @@ canvas.preview{display:block;width:100%;max-width:300px;height:auto;margin:6px a
 
 <div id="hud" class="hidden">
   <div id="keysBadge">Objets clés : 0 / 6</div>
+  <div id="s2Badge" class="hidden"></div>
   <div id="topbar">
     <button class="hudBtn" id="btnBag">Sac</button>
     <button class="hudBtn" id="btnSet">Réglages</button>
@@ -144,7 +147,7 @@ canvas.preview{display:block;width:100%;max-width:300px;height:auto;margin:6px a
   <div class="titleBox">
     <div class="frogLogo" aria-hidden="true">🐸</div>
     <h1>Le Mystère de Babylone</h1>
-    <div class="sub">Une petite île, six univers, une grenouille à lunettes.</div>
+    <div class="sub">Une petite île, onze univers, une grenouille à lunettes.</div>
     <div id="newBox">
       <input id="nick" maxlength="16" placeholder="Ton surnom (pas ton vrai nom)" autocomplete="off" autocapitalize="words" spellcheck="false">
       <div class="note" id="nickNote">Un surnom suffit. Rien ne quitte ton appareil.</div>
@@ -154,7 +157,7 @@ canvas.preview{display:block;width:100%;max-width:300px;height:auto;margin:6px a
       <button class="btn main" id="btnCont">Continuer</button>
       <button class="btn" id="btnRestart">Nouvelle partie</button>
     </div>
-    <div class="foot">Version 1.1 · 2026-10-16 · aucun traceur, aucun cookie</div>
+    <div class="foot">Version 2.0 · 2026-10-17 · aucun traceur, aucun cookie</div>
   </div>
 </div>
 
@@ -989,6 +992,7 @@ function buildIsland() {
   house(-5, -14, { wall: 0xF3E3B3, roof: 0xE08A3C, sign: 'Fromagerie', label: 'Entrer', act: () => G.goArea('fromagerie', 'door') });
   house(5, -14, { wall: 0x3E2A1E, roof: 0x5B3A8C, win: 0xF6C26B, winGlow: 0x4a3008, sign: 'Salle D&D', label: 'Entrer', act: () => G.goArea('dnd', 'door') });
   house(14, -12, { wall: 0xF25C8A, roof: 0x2BB5B0, win: 0xFFD23F, sign: 'Craft room', label: 'Entrer', act: () => G.goArea('craft', 'door') });
+  addS2Island(a, house, g); // Saison 2 : salle de sport, cuisine, cinéma, terrier, montgolfière du 7ème Ciel
 
   // arbres, touffes d'herbe, feuilles mortes, fleurs, rochers (placement stable, couleurs de saison)
   const rnd = seeded(2026);
@@ -1119,6 +1123,8 @@ function buildIsland() {
     p.needsUpdate = true;
     if (a.fish) { a.fish.position.x = Math.cos(t * 0.8) * 0.6; a.fish.position.z = -0.3 + Math.sin(t * 0.8) * 0.5; a.fish.rotation.y = -t * 0.8; }
     if (a.updateFall) a.updateFall(t, dt);
+    if (a.s2Fx) a.s2Fx(t);
+    if (a.balloon) { a.balloon.rotation.y = t * 0.05; a.balloon.position.y = 9.5 + Math.sin(t * 0.6) * 0.08; }
     if (G.updateInhabitants) G.updateInhabitants(t, dt);
     a.dayTimer = (a.dayTimer || 0) + dt; if (a.dayTimer > 30) { a.dayTimer = 0; a.applyDay(); }
   };
@@ -2537,7 +2543,8 @@ G.openHexMap = function () {
       ${SECTORS.map((s, i) => `<polygon points="${pts(i)}" data-go="${s.area}" fill="${s.col}" fill-opacity="${S.keys[s.id] ? 1 : 0.3}" stroke="${S.keys[s.id] ? '#F6C26B' : '#5a4030'}" stroke-width="${S.keys[s.id] ? 4 : 2}" style="cursor:pointer"></polygon>`).join('')}
       ${SECTORS.map((s, i) => { const [x, y] = lab(i); return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="#fbf6ee" font-size="13" font-weight="700" style="pointer-events:none">${s.label}</text>`; }).join('')}
       <circle cx="150" cy="150" r="26" fill="#2b2236"></circle><text x="150" y="150" text-anchor="middle" dominant-baseline="central" fill="#F6C26B" font-size="16" font-weight="800">${Object.keys(S.keys).length}/6</text></svg>
-      <div class="row"><button class="btn" data-go="island" style="flex:1">L'île</button><button class="btn" data-go="room" style="flex:1">Ma chambre</button></div>`;
+      <div class="row"><button class="btn" data-go="island" style="flex:1">L'île</button><button class="btn" data-go="room" style="flex:1">Ma chambre</button></div>` +
+      (s2On() ? `<div class="sec">Saison 2</div><div class="grid">${S2_UNIVERS.map(u => `<button class="btn ${s2State().keys[u.id] ? 'on' : ''}" data-go="${u.area}">${u.label}</button>`).join('')}</div>` : '');
     el.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
       const ar = b.dataset.go; closePanel();
       if (ar === G.areaName) return;
@@ -2678,7 +2685,7 @@ function showEndScreen() {
       <div class="grid">${stat(S.items.filter(i => i.kind === 'bijou').length, 'bijoux créés')}${stat(Object.keys(gd.grown).length, 'plantes cultivées')}${stat(Object.values(ch.made).reduce((a, b) => a + b, 0), 'fromages goûtés')}${stat(cr.habs.length, 'habitants dessinés')}${stat(Object.values(z.souv).reduce((a, b) => a + b, 0), 'souvenirs de Glouglo')}${stat(Object.keys(d.cards).length, 'cartes de tarot')}</div>
       <div class="big" style="text-align:center;margin-top:12px;color:var(--mute)">Le grand miroir de ta chambre te laisse maintenant choisir : humaine ou grenouille.</div>
       <button class="btn main" id="endCont" style="width:100%;margin-top:14px">Continuer à jouer</button>`;
-    $('#endCont').onclick = closePanel;
+    $('#endCont').onclick = () => { closePanel(); if (!s2On()) setTimeout(() => G.unlockS2(true), 600); };
   });
 }
 
@@ -2690,6 +2697,1003 @@ BAG_SECTIONS.push(() => {
     `<div class="card"><div class="t">Parties jouées</div><div>${d.adv}</div></div></div>`;
 });
 
+/* ============ SAISON 2 · « La Mante et le Poisson » : socle commun ============ */
+const S2_UNIVERS = [
+  { id: 'sport', label: 'Salle de sport', area: 'sport', npc: 'Hal Tère', item: 'Haltère plume',
+    clue: 'Hier soir, une grande silhouette verte s\'étirait devant la salle : les bras repliés, comme en prière. Elle marmonnait : « J\'ai trop faim… du beurre… »' },
+  { id: 'cuisine', label: 'Cuisine', area: 'cuisine', npc: 'Sauce Isson', item: 'Toque de chef',
+    clue: 'Quelqu\'un a pillé mon garde-manger : tout le maïs et tout le beurre ont disparu ! Il ne reste que de petites traces de pattes, très fines.' },
+  { id: 'cinema', label: 'Cinéma', area: 'cinema', npc: 'Pop Corinne', item: 'Ticket d\'or',
+    clue: 'Depuis deux nuits, la machine à popcorn fait des bruits bizarres. Pop… pop… crunch. Comme si quelqu\'un mangeait dedans.' },
+  { id: 'bar', label: 'Le 7ème Ciel', area: 'bar', npc: 'Rhum Antik', item: 'Parasol arc-en-ciel',
+    clue: 'Mante Ra adorait les endroits sombres et chauds qui sentent le beurre fondu. Et elle regardait toujours le bassin de Glouglo… avec gourmandise.' },
+  { id: 'terrier', label: 'Terrier des Lapinouches', area: 'terrier', npc: 'Carot Line', item: 'Pompon de lapinouche',
+    clue: 'Les lapinouches ont vu une ombre verte filer vers le grand bâtiment aux lumières qui clignotent, en traînant un sac de maïs.' }
+];
+const S2_HIDEOUTS = [
+  ['bambous', 'Dans les bambous du jardin zen', 'Tu fouilles les bambous… Baby Lone te propose une tisane. Pas de mante ici.'],
+  ['tournesol', 'Derrière le tournesol géant de la serre', 'Derrière le tournesol, il n\'y a que Maide Eric, qui parle à une aubergine. Raté.'],
+  ['table', 'Sous la table hexagonale', 'Sous la table, un troll en plastique te fixe. Aucune mante. Miss Terre sourit.'],
+  ['popcorn', 'Dans la machine à popcorn du cinéma', ''],
+  ['terrier', 'Au fond du terrier des lapinouches', 'Au fond du terrier, seize lapinouches dorment en tas. Adorable, mais pas de mante.'],
+  ['nacelle', 'Dans la nacelle du 7ème Ciel', 'Dans la nacelle, juste des pailles et des confettis. La mante n\'est pas là.']
+];
+function s2State() {
+  if (!S.s2) S.s2 = {};
+  const z = S.s2; z.keys = z.keys || {}; z.clues = z.clues || {}; z.wrong = z.wrong || {};
+  return z;
+}
+const s2On = () => !!s2State().unlocked;
+const s2Clues = () => Object.keys(s2State().clues).length;
+const s2Bonds = () => Math.max(2, 10 - 2 * s2Clues());
+
+/* ---------- Créatures : libellule, mante religieuse, lapinouche ---------- */
+function makeLibellule(col = 0x2BB5B0) {
+  const g = new THREE.Group(), m = M(col, { shininess: 80 });
+  for (let i = 0; i < 5; i++) g.add(ball(0.045 - i * 0.004, m, 0, 0, -0.08 * i, 1));
+  g.add(ball(0.06, m, 0, 0.01, 0.08, 1));
+  [-1, 1].forEach(s => g.add(ball(0.035, M(0x1a3a5a, { shininess: 120 }), s * 0.04, 0.03, 0.11, 1)));
+  const wingM = new THREE.MeshPhongMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, shininess: 120 });
+  g.wings = [];
+  [[-1, 0.02], [1, 0.02], [-1, -0.06], [1, -0.06]].forEach(([s, z]) => { const w = mesh(new THREE.PlaneGeometry(0.28, 0.07), wingM, s * 0.15, 0.03, z); w.rotation.x = -Math.PI / 2; g.add(w); g.wings.push({ w, s }); });
+  g.flap = t => g.wings.forEach(({ w, s }, i) => { w.rotation.z = s * Math.sin(t * 40 + i) * 0.5; });
+  return g;
+}
+function makeMante(col = 0x6FAF5B) {
+  const g = new THREE.Group(), m = M(col, { shininess: 30 });
+  const ab = ball(0.12, m, 0, 0.55, -0.12, 1); ab.scale.set(0.7, 0.7, 1.9); g.add(ab);
+  const thorax = cyl(0.04, 0.05, 0.42, 6, m, 0, 0.82, 0.05); thorax.rotation.x = -0.4; g.add(thorax);
+  const head = mesh(new THREE.ConeGeometry(0.1, 0.12, 3), m, 0, 1.08, 0.14); head.rotation.x = Math.PI; g.add(head);
+  [-1, 1].forEach(s => {
+    g.add(ball(0.045, M(0xC9E3A6, { shininess: 100 }), s * 0.08, 1.11, 0.16, 1));
+    g.add(ball(0.018, M(0x1a2a12), s * 0.09, 1.12, 0.2, 0));
+    const ant = cyl(0.005, 0.005, 0.22, 3, m, s * 0.04, 1.22, 0.16); ant.rotation.z = -s * 0.4; g.add(ant);
+    const arm = cyl(0.018, 0.022, 0.24, 5, m, s * 0.07, 0.92, 0.18); arm.rotation.x = -1.1; g.add(arm); // pattes ravisseuses repliées
+    const fore = cyl(0.016, 0.02, 0.2, 5, m, s * 0.07, 0.86, 0.25); fore.rotation.x = 0.6; g.add(fore);
+    for (let k = 0; k < 2; k++) { const lg = cyl(0.012, 0.012, 0.6, 4, m, s * 0.14, 0.32, -0.05 - k * 0.18); lg.rotation.z = s * 0.35; g.add(lg); }
+  });
+  return g;
+}
+function makeLapinouche(col = 0xFBF6EE) {
+  const g = new THREE.Group(), m = M(col, { shininess: 10 }), pink = M(0xF4C0D1);
+  const body = ball(0.2, m, 0, 0.2, 0, 2); body.scale.set(1, 0.95, 1.1); g.add(body);
+  g.add(ball(0.15, m, 0, 0.44, 0.08, 2));
+  [-1, 1].forEach(s => {
+    const ear = ball(0.06, m, s * 0.06, 0.66, 0.05, 1); ear.scale.set(0.6, 2.2, 0.5); ear.rotation.z = -s * 0.15; g.add(ear);
+    const inner = ball(0.04, pink, s * 0.06, 0.66, 0.075, 1); inner.scale.set(0.45, 1.9, 0.3); inner.rotation.z = -s * 0.15; g.add(inner);
+    g.add(ball(0.025, M(0x2b2236, { shininess: 90 }), s * 0.06, 0.48, 0.21, 0));
+    g.add(ball(0.03, M(0xF0A9A9), s * 0.09, 0.41, 0.19, 0));
+  });
+  g.add(ball(0.022, pink, 0, 0.43, 0.23, 0));
+  g.add(ball(0.07, M(0xffffff), 0, 0.2, -0.22, 1));
+  g.hop = (t, ph = 0) => { g.position.y = Math.abs(Math.sin(t * 4 + ph)) * 0.12; };
+  return g;
+}
+/* Montgolfière aux couleurs du drapeau LGBTQIA+ (drapeau arc-en-ciel « Progress ») */
+const PRIDE = [0xE40303, 0xFF8C00, 0xFFED00, 0x008026, 0x24408E, 0x732982, 0xFFFFFF, 0xF5A9B8, 0x5BCEFA, 0x613915, 0x1a1a1a];
+function makeBalloon(s = 1) {
+  const g = new THREE.Group();
+  PRIDE.forEach((c, i) => {
+    const seg = mesh(new THREE.SphereGeometry(3, 8, 10, i / PRIDE.length * Math.PI * 2, Math.PI * 2 / PRIDE.length, 0, Math.PI * 0.78), M(c, { shininess: 20, side: THREE.DoubleSide }), 0, 0, 0);
+    g.add(seg);
+  });
+  g.children.forEach(c => c.scale.y = 1.15);
+  const cone = mesh(new THREE.CylinderGeometry(1.35, 0.7, 1.1, 11, 1, true), M(0xF5A9B8, { side: THREE.DoubleSide }), 0, -2.9, 0); g.add(cone);
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const r = cyl(0.015, 0.015, 1.4, 3, M(0x8B6A45), Math.cos(a) * 0.75, -4.1, Math.sin(a) * 0.75); g.add(r); }
+  g.add(cyl(0.75, 0.6, 0.6, 12, M(0x9A6B44), 0, -5.0, 0));
+  g.scale.setScalar(s);
+  return g;
+}
+
+/* ---------- Île : 4 bâtiments + montgolfière et son échelle ---------- */
+function addS2Island(a, house, g) {
+  const s2go = (area, spawn) => () => s2On() ? G.goArea(area, spawn) : dialog([{ text: 'Ce lieu ouvrira avec la Saison 2. Patience… ou termine le mystère de Babylone !' }]);
+  house(-15, 5, { wall: 0x5F7FA0, roof: 0x24408E, win: 0xBFE6FF, sign: 'Salle de sport', label: 'Entrer', act: s2go('sport', 'door') });
+  house(15, 5, { wall: 0xFBF6EE, roof: 0xC0392B, win: 0xFFE9B0, sign: 'Cuisine', label: 'Entrer', act: s2go('cuisine', 'door') });
+  house(-20, -5, { wall: 0x2b1f3a, roof: 0xC0392B, win: 0xFFD23F, winGlow: 0x6a4a10, sign: 'Cinéma', label: 'Entrer', act: s2go('cinema', 'door') });
+  // terrier : butte herbeuse et porte ronde
+  const mound = mesh(new THREE.SphereGeometry(2.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(0x6E8F3A), 20, 0, -5.4); mound.scale.y = 0.7; g.add(mound);
+  const door = mesh(new THREE.CircleGeometry(0.6, 16), M(0x8B5E3C), 20, 0.6, -3.28); g.add(door);
+  g.add(mesh(new THREE.TorusGeometry(0.62, 0.06, 6, 16), M(0x5A3A26), 20, 0.6, -3.27));
+  [[-0.9, 0.3], [0.9, 0.25], [1.4, 0.5]].forEach(([dx, dz]) => { const c = mesh(new THREE.ConeGeometry(0.06, 0.25, 6), M(0xF28C38), 20 + dx, 0.08, -3.1 + dz); c.rotation.x = Math.PI / 2.4; g.add(c); });
+  const ts = textSprite('Terrier des Lapinouches', { h: 0.5 }); ts.position.set(20, 2.3, -3.4); g.add(ts);
+  colCirc(a, 20, -5.4, 2.1);
+  a.interact.push({ x: 20, z: -2.6, r: 1.0, label: 'Entrer', act: s2go('terrier', 'door') });
+  // montgolfière au-dessus de la place, échelle de corde jusqu'au sol
+  const bal = makeBalloon(1); bal.position.set(0, 9.5, -10.2); g.add(bal); a.balloon = bal;
+  const LT = 4.2, rope = M(0x8B6A45);
+  for (let y = 0.3; y < LT; y += 0.42) g.add(box(0.5, 0.04, 0.05, rope, 0, y, -9.5));
+  [-0.25, 0.25].forEach(dx => g.add(cyl(0.022, 0.022, LT, 4, rope, dx, LT / 2, -9.5)));
+  const bs = textSprite('Le 7ème Ciel', { h: 0.55, bg: 'rgba(115,41,130,0.9)' }); bs.position.set(0, 2.7, -9.4); g.add(bs);
+  colCirc(a, 0, -9.5, 0.3);
+  a.interact.push({ x: 0, z: -8.6, r: 0.85, label: 'Grimper', act: s2go('bar', 'door') });
+  // petites créatures de la saison 2 sur l'île (visibles une fois la saison ouverte)
+  const fx = new THREE.Group(); g.add(fx);
+  const libs = [makeLibellule(0x2BB5B0), makeLibellule(0xF25C8A)]; libs.forEach(l => { l.scale.setScalar(1.8); fx.add(l); });
+  const buns = [0xFBF6EE, 0xF4D7E4, 0xE8D8C4].map(c => { const b = makeLapinouche(c); fx.add(b); return b; });
+  a.s2Fx = t => {
+    fx.visible = s2On(); if (!fx.visible) return;
+    libs.forEach((l, i) => { const an = t * 0.8 + i * 3.1; l.position.set(Math.cos(an) * 3, 2.2 + Math.sin(t * 1.7 + i) * 0.6, -8 + Math.sin(an) * 2.2); l.rotation.y = -an; l.flap(t); });
+    buns.forEach((b, i) => { const an = t * 0.35 + i * 2.1; b.position.set(20 + Math.cos(an) * 2.4, 0, -1.6 + Math.sin(an) * 0.9); b.hop(t, i); b.rotation.y = -an; });
+  };
+  a.spawns.sport = { x: -15, z: 7.4, face: 0 }; a.spawns.cuisine = { x: 15, z: 7.4, face: 0 };
+  a.spawns.cinema = { x: -20, z: -2.6, face: 0 }; a.spawns.terrier = { x: 20, z: -2.2, face: 0 }; a.spawns.bar = { x: 0.9, z: -8.5, face: 0 };
+}
+
+/* ---------- Déblocage et introduction de l'intrigue ---------- */
+G.unlockS2 = function (intro = true) {
+  const z = s2State(); if (z.unlocked) return;
+  z.unlocked = true; save(); updateS2Badge();
+  if (!intro) return;
+  dialog([
+    { text: 'Un grand « fffshhh » traverse le ciel. Une montgolfière aux couleurs arc-en-ciel s\'est posée au-dessus de la place !' },
+    { text: 'Une échelle de corde pend jusqu\'au sol. Sur la nacelle, une enseigne clignote : « Le 7ème Ciel ».' },
+    { name: 'Voix depuis le ciel', text: 'ALERTE ! Mante Ra, notre danseuse vedette, a disparu ! Et elle n\'a rien mangé depuis trois jours…' },
+    { name: 'Voix depuis le ciel', text: 'Elle a toujours eu un faible pour… les petits poissons bleus.' },
+    { text: 'Glouglo ! Il faut retrouver Mante Ra avant qu\'elle n\'atteigne le bassin. Cinq nouveaux lieux viennent d\'ouvrir sur l\'île.' }
+  ], () => showHint('Saison 2 : visite les 5 nouveaux lieux et récolte leurs indices (onglet « Enquête » du sac).', 9000));
+};
+function updateS2Badge() {
+  const b = $('#s2Badge'); if (!b) return; const z = s2State();
+  if (!z.unlocked) { b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.textContent = z.solved ? 'Glouglo est en sécurité' : `Indices : ${s2Clues()} / 5 · Mante Ra à ${s2Bonds()} bonds du bassin`;
+}
+function giveS2Key(id, lines) {
+  const z = s2State(), u = S2_UNIVERS.find(x => x.id === id);
+  if (z.keys[id]) return;
+  dialog(lines.concat([{ name: u.npc, text: u.clue }, { text: `Indice noté dans ton enquête (${s2Clues() + 1} / 5).` }]), () => {
+    z.keys[id] = true; z.clues[id] = true; save(); updateS2Badge(); sfx('chime'); sfx('sparkle');
+    toast(`Objet obtenu : ${u.item} · Mante Ra est à ${s2Bonds()} bonds de Glouglo`);
+    if (s2Clues() >= 5 && !z.solved) setTimeout(() => showHint('Cinq indices ! Ouvre l\'onglet « Enquête » du sac et désigne la cachette de Mante Ra.', 9000), 2200);
+  });
+}
+
+/* ---------- Onglet « Enquête » du sac ---------- */
+G.renderEnquete = function (el, rerender) {
+  const z = s2State(), n = s2Clues();
+  let h = `<div class="big" style="margin-bottom:6px">${z.solved ? 'Affaire résolue : Mante Ra est redevenue danseuse, et Glouglo nage tranquille.' : 'Où se cache Mante Ra ? Récolte un indice dans chacun des 5 nouveaux lieux.'}</div>`;
+  if (!z.solved) {
+    const pct = (10 - s2Bonds()) / 8 * 100;
+    h += `<div class="step">Distance entre Mante Ra et le bassin de Glouglo : ${s2Bonds()} bonds</div><div class="prog"><div style="width:${pct}%;background:#97C459"></div></div>`;
+  }
+  h += S2_UNIVERS.map(u => z.clues[u.id]
+    ? `<div class="card" style="margin-top:8px"><div class="t">${u.npc} · ${u.label}</div><div>${u.clue}</div></div>`
+    : `<div class="card ghost" style="margin-top:8px"><div class="t">???</div><div>Indice à trouver : ${u.label}</div></div>`).join('');
+  if (!z.solved && n >= 5 && !z.accused) h += `<button class="btn main" id="s2Accuse" style="width:100%;margin-top:14px;min-height:56px">Désigner la cachette de Mante Ra</button>`;
+  if (!z.solved && z.accused) h += `<div class="card" style="margin-top:12px;border:2px solid #F6C26B"><div class="t">Cachette trouvée !</div><div>Cours au cinéma et ouvre la machine à popcorn.</div></div>`;
+  h += `<div class="sec">Objets de la saison 2</div><div class="grid">` + S2_UNIVERS.map(u => z.keys[u.id] ? `<div class="card"><div class="t">${u.item}</div><div>${u.label}</div></div>` : `<div class="card ghost"><div class="t">???</div><div>${u.label}</div></div>`).join('') + `</div>`;
+  el.insertAdjacentHTML('beforeend', h);
+  const b = el.querySelector('#s2Accuse'); if (b) b.onclick = () => openAccuse(rerender);
+};
+function openAccuse(rerender) {
+  const z = s2State();
+  openPanel('Où se cache Mante Ra ?', el => {
+    el.innerHTML = `<div class="big">Relis tes indices… puis choisis. Pas de pression : tu peux te tromper autant que tu veux.</div><div style="margin-top:10px">` +
+      S2_HIDEOUTS.map(([k, l]) => `<button class="btn ${z.wrong[k] ? '' : ''}" data-h="${k}" style="width:100%;margin-bottom:8px;text-align:left;${z.wrong[k] ? 'opacity:.45' : ''}">${l}</button>`).join('') + `</div>`;
+    el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => {
+      const [k, , gag] = S2_HIDEOUTS.find(x => x[0] === b.dataset.h);
+      if (k === 'popcorn') { z.accused = true; save(); closePanel(); sfx('chime'); dialog([{ text: 'Sombre, chaud, ça sent le beurre fondu, et ça fait « crunch » la nuit… Bien sûr : la machine à popcorn !' }, { text: 'Vite, au cinéma, avant que Mante Ra ne file vers le bassin !' }], () => showHint('Va au cinéma et ouvre la machine à popcorn.', 8000)); return; }
+      z.wrong[k] = true; save(); sfx('boing'); closePanel(); dialog([{ text: gag }, { text: 'Mante Ra, elle, n\'a pas bougé d\'une patte. Relis tes indices tranquillement.' }]);
+    });
+  });
+}
+
+/* ---------- La confrontation (machine à popcorn) et la fin de la saison 2 ---------- */
+G.popcornConfront = function () {
+  const z = s2State(), a = G.areas.cinema;
+  const dish = [...S.items].reverse().find(i => i.kind === 'plat' && !i.wonky) || [...S.items].reverse().find(i => i.kind === 'plat');
+  const dishName = dish ? dish.name.toLowerCase() : 'un bol de popcorn tout chaud';
+  const mp = a.machinePos;
+  portrait({ pos: new THREE.Vector3(mp.x - 0.4, 2.2, mp.z + 4.0), look: new THREE.Vector3(mp.x - 0.4, 0.9, mp.z + 0.6), stand: [mp.x - 0.9, mp.z + 0.8] }, 1.79);
+  dialog([
+    { text: 'Tu ouvres la vitre de la machine à popcorn…', fx: () => sfx('pop') },
+    { text: 'POP ! Une grande mante verte surgit dans une pluie de popcorn !', fx: () => { a.mante.visible = true; a.mante.position.set(a.machinePos.x, 0, a.machinePos.z + 0.6); sfx('boing'); } },
+    { name: 'Mante Ra', text: 'Oh non. Démasquée. Avec du beurre jusqu\'aux antennes, en plus.' },
+    { name: 'Mante Ra', text: 'Je danse toute la nuit au 7ème Ciel, et j\'ai toujours faim. Le popcorn, c\'est bon, mais ça ne tient pas au ventre.' },
+    { name: 'Mante Ra', text: 'Alors je me suis dit… un petit poisson bleu, pour le dessert…' },
+    { name: S.nick, text: 'Pas Glouglo ! Attends. Goûte plutôt ça.' },
+    { text: `Tu lui tends ${dishName}, cuisiné avec amour.`, fx: () => sfx('soft') },
+    { name: 'Mante Ra', text: 'Mmmh… C\'est… délicieux. Bien meilleur qu\'un poisson. Et ça ne fait pas de bulles dans le ventre.' },
+    { name: 'Mante Ra', text: 'Je promets : plus jamais je ne regarderai Glouglo avec gourmandise. Juste avec tendresse.' },
+    { name: 'Mante Ra', text: 'Je retourne danser au 7ème Ciel. Passe me voir, je te réserve le meilleur spectacle de l\'île.' }
+  ], () => {
+    endPortrait(); z.solved = true; save(); updateS2Badge(); a.mante.visible = false; sfx('chime'); sfx('sparkle');
+    setTimeout(showS2End, 400);
+  });
+};
+function showS2End() {
+  const z = s2State();
+  openPanel('Saison 2 terminée !', el => {
+    el.innerHTML = `<div class="big" style="text-align:center">Mante Ra est retrouvée, Glouglo est sauf, et la mante est redevenue la reine de la piste du 7ème Ciel.</div>
+      <div class="grid" style="margin-top:12px">${S2_UNIVERS.map(u => `<div class="card"><div class="t">${u.item}</div><div>${u.label}</div></div>`).join('')}</div>
+      <div class="big" style="text-align:center;margin-top:10px;color:var(--mute)">Baby Lone te fait dire merci. Glouglo, lui, fait une bulle en forme de cœur.</div>
+      <button class="btn main" id="s2EndOk" style="width:100%;margin-top:12px">Continuer à jouer</button>`;
+    $('#s2EndOk').onclick = closePanel;
+  });
+}
+
+/* ---------- Réglage d'accès anticipé (bêta) ---------- */
+function s2SettingsHTML() {
+  const on = s2On();
+  return `<div class="toggle"><span>Saison 2 : accès anticipé (bêta)</span><button class="btn small ${on ? 'on' : ''}" id="s2Beta" ${on ? 'disabled' : ''}>${on ? 'Ouverte' : 'Ouvrir'}</button></div>`;
+}
+function s2BindSettings(el) { const b = el.querySelector('#s2Beta'); if (b && !s2On()) b.onclick = () => { closePanel(); setTimeout(() => G.unlockS2(true), 300); }; }
+
+
+/* ---------- Pièce intérieure commune (sol, 3 murs, porte à gauche) ---------- */
+function s2Room(name, o) {
+  const a = newArea(name, { bounds: { type: 'rect', minX: -4.1, maxX: 4.1, minZ: -2.9, maxZ: 3.0 }, cam: [0, 6.3, 7.4], bg: o.bg || 0x2b2236 });
+  const g = a.group;
+  const fl = o.floorMat || M(o.floor);
+  g.add(box(9, 0.2, 7, fl, 0, -0.1, 0));
+  if (o.lines !== false) for (let i = -3; i <= 3; i++) g.add(box(9, 0.01, 0.03, M(o.line || 0x000000, { transparent: true, opacity: 0.18 }), 0, 0.005, i));
+  const wm = o.wallMat || M(o.wall);
+  g.add(box(9, 5.6, 0.2, wm, 0, 2.8, -3.6)); g.add(box(0.2, 5.6, 7, wm, -4.5, 2.8, 0)); g.add(box(0.2, 5.6, 7, wm, 4.5, 2.8, 0));
+  const door = new THREE.Group(); door.position.set(-4.38, 0, 2.2); g.add(door);
+  door.add(box(0.08, 2.1, 1.0, M(o.door || 0x5a3a26), 0, 1.05, 0)); door.add(ball(0.05, M(0xC9A24A, { shininess: 60 }), 0.07, 1.0, 0.35, 0));
+  a.interact.push({ x: -3.7, z: 2.2, r: 0.95, label: 'Sortir', act: () => G.goArea('island', name) });
+  a.spawns.door = { x: -3.4, z: 2.2, face: Math.PI / 2 };
+  a.hemi = new THREE.HemisphereLight(o.sky || 0xfff4e6, o.ground || 0x3a2a30, o.hemiI ?? 0.7); g.add(a.hemi);
+  a.lamp = new THREE.PointLight(o.lamp || 0xffe2b0, o.lampI ?? 0.9, 14, 1.5); a.lamp.position.set(0, 3.2, 0.4); g.add(a.lamp);
+  return a;
+}
+const faceNpc = npc => { npc.root.rotation.y = Math.atan2(G.player.root.position.x - npc.root.position.x, G.player.root.position.z - npc.root.position.z); };
+function s2Met(id) { const z = s2State(); z.met = z.met || {}; const was = !!z.met[id]; z.met[id] = true; save(); return was; }
+
+/* ---------- Baby Lone et Glouglo pendant l'enquête ---------- */
+(function () {
+  const orig = G.talkBabyLone;
+  G.talkBabyLone = function () {
+    const z = s2State();
+    if (z.unlocked && !z.solved && zenState().met) {
+      dialog([{ name: 'Baby Lone', text: pick([
+        'Glouglo se cache sous un nénuphar depuis ce matin. Il sent que quelque chose cloche, man.',
+        'Une mante qui a faim, près de mon Glouglo ? Pas de violence, hein. On lui offrira un bon repas, voilà tout.',
+        'Paraît qu\'elle danse au 7ème Ciel. Moi je danse aussi, mais dans ma tête.'
+      ]) }]);
+      return;
+    }
+    if (z.solved && Math.random() < 0.5) { dialog([{ name: 'Baby Lone', text: pick(['Mante Ra est passée dire pardon à Glouglo. Il lui a fait une bulle. Trop mignon.', 'Merci pour Glouglo. Tu es une vraie amie, petite grenouille. Ou petite humaine. Peu importe, man.']) }]); return; }
+    orig();
+  };
+})();
+
+/* ---------- Mini-jeux en étapes (réutilisables, aucun échec possible) ---------- */
+function runSteps(el, steps, done) {
+  let i = 0, wonky = false;
+  const next = () => {
+    if (i >= steps.length) return done(wonky);
+    const s = steps[i++], head = stepHead(i, steps.length, s.txt, s.sub);
+    if (s.n) tapStep(el, head, s.label, s.n, s.snd || 'pop', next);
+    else timingStep(el, head, s.label, ok => { if (!ok) wonky = true; sfx(ok ? 'chime' : 'boing'); G.tTimer = setTimeout(next, 250); });
+  };
+  next();
+}
+function resultView(el, title, name, sub, btns) {
+  el.innerHTML = `<div class="big" style="text-align:center;font-weight:700">${title}</div>
+    <div style="text-align:center;font-size:18px;margin:10px 0 4px">${esc(name)}</div>
+    <div style="text-align:center;color:var(--mute);font-size:14px;margin-bottom:12px">${sub}</div>
+    <div class="row">${btns.map((b, i) => `<button class="btn ${i === 0 ? 'main' : ''}" data-rb="${i}" style="flex:1;min-height:52px">${b[0]}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-rb]').forEach(b => b.onclick = () => btns[+b.dataset.rb][1]());
+}
+
+/* ============ S2 · La salle de sport de Hal Tère : on bouge pour le plaisir, jamais pour la performance ============ */
+const GYM = {
+  tapis: { label: 'Tapis de course', steps: [{ txt: 'Marche tranquille sur le tapis.', label: 'Un petit pas', n: 8, snd: 'soft' }, { txt: 'Saute du tapis avec style !', sub: 'Touche dans la zone verte.', label: 'Sauter' }], ok: 'Petite marche parfaite. Ton cœur fait des claquettes.', ko: 'Tu as atterri en grand écart. Hal Tère applaudit quand même.' },
+  halteres: { label: 'Haltères plume', steps: [{ txt: 'Soulève les haltères (elles pèsent autant qu\'un nuage).', label: 'Soulever', n: 6, snd: 'tink' }, { txt: 'Repose-les tout doucement.', label: 'Reposer' }], ok: 'Bras de velours, mouvement de soie.', ko: 'Les haltères ont roulé sous le banc. Elles avaient envie de jouer.' },
+  yoga: { label: 'Yoga de la grenouille', steps: [{ txt: 'Inspire… expire… à chaque toucher.', label: 'Respirer', n: 5, snd: 'soft' }, { txt: 'Prends la posture de la grenouille.', label: 'Posture' }], ok: 'Posture de la grenouille : parfaite (et pour cause).', ko: 'Posture du bretzel confus. Très originale.' },
+  trampoline: { label: 'Trampoline', steps: [{ txt: 'Rebondis, de plus en plus haut !', label: 'Boing', n: 6, snd: 'boing' }, { txt: 'Atterris sur tes deux pieds.', label: 'Atterrir' }], ok: 'Atterrissage de championne. Pardon : d\'amatrice heureuse.', ko: 'Tu es retombée sur les fesses. Le trampoline rit avec toi.' },
+  velo: { label: 'Vélo d\'appartement', steps: [{ txt: 'Pédale en écoutant la musique.', label: 'Pédaler', n: 10, snd: 'pop' }, { txt: 'Freine en douceur.', label: 'Freiner' }], ok: 'Balade imaginaire au bord de la mer. Magnifique.', ko: 'Tu as continué à pédaler dans le vide. Le vélo, lui, s\'est arrêté.' }
+};
+function gymState() { const z = s2State(); z.gym = z.gym || {}; return z.gym; }
+
+function makeHalTere() {
+  const r = makeRobot({ body: 0x3A7BD5, band: 0xFBF6EE, browTilt: -0.08, shiny: 30 });
+  r.head.add(cyl(0.425, 0.425, 0.09, 12, M(0xE24B4A), 0, 0.27, 0)); // bandeau éponge
+  const smile = mesh(new THREE.TorusGeometry(0.07, 0.013, 4, 10, Math.PI * 0.9), M(0xFBF6EE)); smile.position.set(0, -0.12, 0.41); smile.rotation.z = Math.PI + 0.15; r.head.add(smile);
+  const db = new THREE.Group(); db.position.set(0, -0.7, 0.06); r.arms[1].add(db);
+  const bar = cyl(0.015, 0.015, 0.3, 5, M(0x5F5E5A)); bar.rotation.z = Math.PI / 2; db.add(bar);
+  [-1, 1].forEach(s => { const w = cyl(0.06, 0.06, 0.06, 8, M(0xF4C0D1)); w.rotation.z = Math.PI / 2; w.position.x = s * 0.15; db.add(w); });
+  r.body.add(box(0.2, 0.12, 0.02, M(0xFBF6EE), 0, 0.68, 0.27)); // dossard
+  return r;
+}
+
+function buildSport() {
+  const a = s2Room('sport', { floor: 0x3E4A5C, wall: 0xDCE8F2, bg: 0x1d2633, sky: 0xf2f8ff, ground: 0x2a3446, lamp: 0xfff4e0, lampI: 1.0 });
+  const g = a.group;
+  // miroir mural + néon
+  g.add(box(5.2, 1.8, 0.05, M(0xCFE6F2, { shininess: 150, specular: 0xffffff }), 0, 1.6, -3.48));
+  const neon = textSprite('Bouge pour le plaisir', { h: 0.5, bg: 'rgba(36,64,142,0.9)', fg: '#FFD23F' }); neon.position.set(0, 3.1, -3.4); g.add(neon);
+  // tapis de course
+  g.add(box(0.9, 0.18, 1.8, M(0x2a2a2f), -3.2, 0.09, -2.4)); g.add(box(0.7, 0.02, 1.6, M(0x111114), -3.2, 0.19, -2.4));
+  [-1, 1].forEach(s => g.add(cyl(0.025, 0.025, 1.1, 5, M(0xC0C4CC, { shininess: 80 }), -3.2 + s * 0.4, 0.7, -3.15)));
+  g.add(box(0.85, 0.3, 0.12, M(0x3A7BD5), -3.2, 1.25, -3.15));
+  colRect(a, -3.2, -2.4, 0.5, 0.95);
+  a.interact.push({ x: -2.3, z: -2.0, r: 0.8, label: 'Tapis', act: () => G.openGym('tapis') });
+  // vélo d'appartement
+  g.add(box(0.2, 0.08, 1.0, M(0x2a2a2f), -1.3, 0.04, -2.7)); g.add(cyl(0.04, 0.04, 0.7, 6, M(0xE24B4A), -1.3, 0.4, -2.85));
+  g.add(box(0.28, 0.06, 0.32, M(0x2a2a2f), -1.3, 0.78, -2.85)); g.add(cyl(0.04, 0.04, 0.8, 6, M(0xE24B4A), -1.3, 0.5, -2.35));
+  const fly = cyl(0.25, 0.25, 0.06, 14, M(0xC0C4CC, { shininess: 80 }), -1.3, 0.35, -2.45); fly.rotation.z = Math.PI / 2; g.add(fly); a.fly = fly;
+  colRect(a, -1.3, -2.65, 0.3, 0.55);
+  a.interact.push({ x: -1.3, z: -1.75, r: 0.6, label: 'Vélo', act: () => G.openGym('velo') });
+  // haltères
+  g.add(box(1.8, 0.7, 0.45, M(0x5F5E5A), 2.6, 0.35, -3.1));
+  [0xF4C0D1, 0x97C459, 0x85B7EB, 0xFFD23F, 0xC9A6E8].forEach((c, i) => [0.5, 0.78].forEach(y => { const b = cyl(0.06, 0.06, 0.28, 8, M(c), 1.9 + i * 0.35, y, -3.0); b.rotation.z = Math.PI / 2; g.add(b); }));
+  colRect(a, 2.6, -3.1, 0.95, 0.3);
+  a.interact.push({ x: 2.6, z: -2.3, r: 0.7, label: 'Haltères', act: () => G.openGym('halteres') });
+  // tapis de yoga
+  [[2.4, 0x97C459], [3.5, 0xF4C0D1]].forEach(([x, c]) => { const m = box(0.8, 0.02, 1.7, M(c), x, 0.012, 0.9); g.add(m); });
+  a.interact.push({ x: 3.0, z: 0.9, r: 0.8, label: 'Yoga', act: () => G.openGym('yoga') });
+  // trampoline
+  g.add(cyl(0.85, 0.85, 0.12, 18, M(0x24408E), -2.4, 0.42, 0.5)); const tr = cyl(0.72, 0.72, 0.02, 18, M(0x111114), -2.4, 0.49, 0.5); g.add(tr); a.tramp = tr;
+  for (let i = 0; i < 4; i++) { const an = i / 4 * 6.28 + 0.4; g.add(cyl(0.03, 0.03, 0.4, 5, M(0x5F5E5A), -2.4 + Math.cos(an) * 0.75, 0.2, 0.5 + Math.sin(an) * 0.75)); }
+  colCirc(a, -2.4, 0.5, 0.85);
+  a.interact.push({ x: -1.2, z: 0.9, r: 0.6, label: 'Trampoline', act: () => G.openGym('trampoline') });
+  // gourdes et serviettes
+  [0, 1, 2].forEach(i => g.add(cyl(0.06, 0.06, 0.24, 8, M([0x2BB5B0, 0xF28C38, 0x7B4FA0][i]), 4.1, 0.12, -1.6 + i * 0.25)));
+  // Hal Tère
+  const ht = makeHalTere(); ht.root.position.set(0.4, 0, -1.7); g.add(ht.root); a.npc = ht;
+  colCirc(a, 0.4, -1.7, 0.5);
+  a.interact.push({ x: 0.4, z: -0.8, r: 0.8, label: 'Parler', act: () => G.talkHalTere() });
+  a.update = t => {
+    ht.update(t); ht.arms[1].rotation.x = -0.6 + Math.sin(t * 2.2) * 0.6; // petites flexions avec l'haltère
+    a.fly.rotation.x = t * 3; a.tramp.position.y = 0.49 + Math.sin(t * 3) * 0.01;
+  };
+  return a;
+}
+
+G.openGym = function (ex) {
+  const e = GYM[ex], gy = gymState();
+  openPanel(e.label, el => {
+    runSteps(el, e.steps, wonky => {
+      gy[ex] = (gy[ex] || 0) + 1; save(); sfx(wonky ? 'boing' : 'sparkle');
+      const n = Object.keys(gy).length;
+      resultView(el, wonky ? 'Raté… avec panache !' : 'Bravo !', wonky ? e.ko : e.ok, `Exercices différents essayés : ${Math.min(n, 5)} / 5`, [['Continuer', closePanel], ['Encore une fois', () => G.openGym(ex)]]);
+    });
+  }, () => { if (Object.keys(gy).length >= 3 && !s2State().keys.sport && (s2State().met || {}).sport) setTimeout(() => G.talkHalTere(true), 300); });
+};
+G.talkHalTere = function (auto) {
+  const a = G.areas.sport, z = s2State(), gy = gymState(), n = Object.keys(gy).length;
+  faceNpc(a.npc);
+  if (!z.met || !z.met.sport) {
+    if (auto) return;
+    s2Met('sport');
+    dialog([
+      { name: 'Hal Tère', text: 'Salut, {nick} ! Bienvenue dans ma salle. Ici, pas de chrono, pas de record, pas de miroir qui juge.' },
+      { name: 'Hal Tère', text: 'On bouge pour le plaisir. Et si tu tombes, on dit que c\'était de la danse contemporaine.' },
+      { name: 'Hal Tère', text: 'Essaie trois activités différentes, à ton rythme. Je te raconterai ensuite un truc bizarre que j\'ai vu hier soir.' }
+    ], () => showHint('Essaie 3 activités : tapis, vélo, haltères, yoga ou trampoline.', 7000));
+    return;
+  }
+  if (!z.keys.sport && n >= 3) {
+    giveS2Key('sport', [
+      { name: 'Hal Tère', text: 'Trois activités ! Tu bouges comme un petit nuage heureux.' },
+      { name: 'Hal Tère', text: 'Tiens, mon haltère plume. Elle ne pèse rien, comme les soucis quand on bouge un peu.' },
+      { name: 'Hal Tère', text: 'Et maintenant, le truc bizarre…' }
+    ]);
+    return;
+  }
+  if (auto) return;
+  if (!z.keys.sport) { dialog([{ name: 'Hal Tère', text: `Tu as essayé ${n} activité${n > 1 ? 's' : ''} sur 3. Pas de pression : le trampoline ne s'en va pas.` }]); return; }
+  dialog([{ name: 'Hal Tère', text: pick([
+    'Le meilleur exercice ? Celui qui te fait sourire.',
+    'Une mante religieuse qui s\'étire, c\'est très élégant. Mais quand elle a faim, c\'est moins rassurant.',
+    'Bois de l\'eau ! Glouglo serait d\'accord. Enfin, lui, il vit dedans.',
+    'J\'ai essayé le yoga de la grenouille. Je suis resté coincé deux heures. Superbe expérience.'
+  ]) }]);
+};
+
+/* ============ S2 · La cuisine de Sauce Isson : on cuisine avec ce que l'île nous donne ============ */
+const RECIPES = [
+  { id: 'ratatouille', name: 'Ratatouille de la serre', need: ['g', 'aubergine'], chop: 'Couper l\'aubergine', stir: 'Mijoter', ko: 'Ratatouille qui a vu des choses' },
+  { id: 'tarte', name: 'Tarte fondante à la pêche', need: ['g', 'peche'], chop: 'Trancher les pêches', stir: 'Étaler la pâte', ko: 'Tarte en forme de chapeau' },
+  { id: 'soupe', name: 'Soupe à l\'oignon vert', need: ['g', 'oignon'], chop: 'Émincer l\'oignon', stir: 'Remuer la soupe', ko: 'Soupe aux bulles suspectes' },
+  { id: 'omelette', name: 'Omelette aux champignons', need: ['g', 'champignon'], chop: 'Couper les champignons', stir: 'Battre les œufs', ko: 'Omelette qui louche' },
+  { id: 'croque', name: 'Croque au K-Menber', need: ['c', 'kmenber'], chop: 'Trancher le K-Menber', stir: 'Faire dorer', ko: 'Croque qui croque tout seul' }
+];
+function kitchenState() { const z = s2State(); z.dish = z.dish || {}; return z.dish; }
+function hasIngredient(r) { try { return r.need[0] === 'g' ? (garden().produce[r.need[1]] || 0) > 0 : (cheeseState().made[r.need[1]] || 0) > 0; } catch (e) { return false; } }
+
+function checkerTexture(a, b) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { x.fillStyle = (i + j) % 2 ? a : b; x.fillRect(i * 16, j * 16, 16, 16); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.4); return t;
+}
+function makeSauceIsson() {
+  const r = makeRobot({ body: 0xFBF6EE, band: 0xC0392B, browTilt: 0.12, shiny: 40 });
+  const white = M(0xFFFFFF, { shininess: 20 });
+  r.head.add(cyl(0.3, 0.3, 0.32, 12, white, 0, 0.5, 0)); // toque
+  [[-0.14, 0], [0.14, 0], [0, 0.12], [0, -0.12], [0, 0]].forEach(([x, z]) => r.head.add(ball(0.17, white, x, 0.72, z, 1)));
+  [-1, 1].forEach(s => { const mu = ball(0.07, M(0x3a2a22), s * 0.08, -0.13, 0.4, 1); mu.scale.set(1.6, 0.6, 0.6); mu.rotation.z = s * 0.3; r.head.add(mu); }); // moustache
+  r.body.add(box(0.36, 0.38, 0.02, M(0xFBF6EE), 0, 0.6, 0.27)); // tablier
+  const ladle = new THREE.Group(); ladle.position.set(0, -0.7, 0.05); r.arms[0].add(ladle);
+  ladle.add(cyl(0.012, 0.012, 0.32, 5, M(0xC0C4CC, { shininess: 80 }), 0, 0.12, 0)); ladle.add(ball(0.05, M(0xC0C4CC, { shininess: 80 }), 0, -0.06, 0, 1));
+  return r;
+}
+
+function buildCuisine() {
+  const a = s2Room('cuisine', { floorMat: new THREE.MeshPhongMaterial({ map: checkerTexture('#E8E2D0', '#C0392B'), shininess: 30 }), lines: false, wall: 0xFFF6E6, bg: 0x2a1c18, lamp: 0xffe2b0, lampI: 1.0 });
+  const g = a.group;
+  // plan de travail + fourneaux (fond)
+  g.add(box(6.0, 0.9, 0.7, M(0xF3E3B3), 0, 0.45, -3.1)); g.add(box(6.1, 0.06, 0.76, M(0x8B5E3C), 0, 0.92, -3.1));
+  g.add(box(1.5, 0.92, 0.72, M(0x3a3a44, { shininess: 60 }), -1.2, 0.46, -3.1));
+  const flames = [];
+  [[-1.55, -3.25], [-0.85, -3.25], [-1.55, -2.9], [-0.85, -2.9]].forEach(([x, z], i) => {
+    g.add(cyl(0.16, 0.16, 0.02, 12, M(0x1B1B1E), x, 0.96, z));
+    const f = mesh(new THREE.ConeGeometry(0.08, 0.12, 6), new THREE.MeshBasicMaterial({ color: i % 2 ? 0x5BCEFA : 0x85B7EB, transparent: true, opacity: 0.8 }), x, 1.02, z); g.add(f); flames.push(f);
+  });
+  const pot = cyl(0.22, 0.2, 0.28, 12, M(0xC0C4CC, { shininess: 90 }), -1.55, 1.11, -3.1); g.add(pot);
+  const steam = []; for (let i = 0; i < 4; i++) { const s = ball(0.06, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 }), -1.55, 1.3, -3.1, 0); g.add(s); steam.push(s); }
+  // casseroles suspendues
+  for (let i = 0; i < 4; i++) { const pan = cyl(0.17 - i * 0.02, 0.15 - i * 0.02, 0.06, 12, M(0xD9A441, { shininess: 80 }), 0.9 + i * 0.5, 2.3, -3.42); pan.rotation.x = Math.PI / 2; g.add(pan); }
+  g.add(box(2.4, 0.04, 0.04, M(0x5F5E5A), 1.65, 2.55, -3.42));
+  colRect(a, 0, -3.1, 3.05, 0.4);
+  a.interact.push({ x: -1.2, z: -2.2, r: 0.85, label: 'Fourneaux', act: () => G.openCooking() });
+  // garde-manger (pillé)
+  g.add(box(1.2, 2.2, 0.7, M(0xD9C7A3), 3.7, 1.1, -1.2)); const pdoor = box(0.06, 2.0, 0.6, M(0xC49A6C), 3.0, 1.1, -0.65); pdoor.rotation.y = 0.9; g.add(pdoor); // porte entrouverte (ajoutée à part : add() renvoie le parent)
+  [0.5, 1.1, 1.7].forEach(y => g.add(box(1.0, 0.04, 0.6, M(0x8B5E3C), 3.7, y, -1.2)));
+  g.add(box(0.3, 0.25, 0.25, M(0xE9C46A), 3.5, 1.25, -1.2)); g.add(box(0.2, 0.18, 0.2, M(0xBFE6FF), 3.9, 0.62, -1.2));
+  colRect(a, 3.7, -1.2, 0.65, 0.4);
+  a.interact.push({ x: 2.8, z: -1.2, r: 0.75, label: 'Garde-manger', act: () => dialog([{ text: pick(s2State().keys.cuisine ? ['Le garde-manger a été rempli à nouveau. Plus de maïs que jamais.', 'Une étiquette : « Réservé à Mante Ra — popcorn uniquement ».'] : ['Les étagères du maïs et du beurre sont vides. Seules restent quelques miettes… et de toutes petites traces de pattes.', 'Il reste des pois chiches, du sel et une cuillère qui a l\'air triste.']) }]) });
+  // table et chaises
+  g.add(cyl(0.8, 0.8, 0.06, 16, M(0xC49A6C), -2.2, 0.75, 0.9)); g.add(cyl(0.08, 0.12, 0.72, 8, M(0x8B5E3C), -2.2, 0.37, 0.9));
+  g.add(cyl(0.7, 0.7, 0.01, 16, M(0xF4C0D1), -2.2, 0.785, 0.9));
+  [[-3.2, 0.9], [-1.2, 0.9]].forEach(([x, z]) => { g.add(box(0.45, 0.06, 0.45, M(0x8B5E3C), x, 0.45, z)); g.add(box(0.06, 0.45, 0.06, M(0x8B5E3C), x, 0.22, z)); });
+  a.plate = new THREE.Group(); a.plate.position.set(-2.2, 0.8, 0.9); g.add(a.plate);
+  a.plate.add(cyl(0.22, 0.18, 0.03, 14, M(0xFFFFFF)));
+  a.dishMesh = ball(0.12, M(0xE08A3C), 0, 0.08, 0, 1); a.dishMesh.scale.y = 0.5; a.dishMesh.visible = false; a.plate.add(a.dishMesh);
+  colCirc(a, -2.2, 0.9, 0.85);
+  a.interact.push({ x: -2.2, z: 2.1, r: 0.7, label: 'Table', act: () => { const last = [...S.items].reverse().find(i => i.kind === 'plat'); dialog([{ text: last ? `Ton dernier plat t'attend : ${last.name}. Ça sent divinement bon.` : 'Une jolie table vide. Elle attend ton premier plat.' }]); } });
+  // Sauce Isson
+  const si = makeSauceIsson(); si.root.position.set(1.2, 0, -2.2); g.add(si.root); a.npc = si;
+  colCirc(a, 1.2, -2.2, 0.5);
+  a.interact.push({ x: 1.2, z: -1.3, r: 0.8, label: 'Parler', act: () => G.talkSauceIsson() });
+  a.onEnter = () => refreshPlate();
+  a.update = t => {
+    si.update(t); si.arms[0].rotation.x = -0.8 + Math.sin(t * 3) * 0.3;
+    flames.forEach((f, i) => f.scale.y = 1 + Math.sin(t * 10 + i) * 0.25);
+    steam.forEach((s, i) => { const ph = (t * 0.4 + i / 4) % 1; s.position.set(-1.55 + Math.sin(t + i) * 0.05, 1.3 + ph * 0.8, -3.1); s.material.opacity = 0.4 * (1 - ph); });
+  };
+  return a;
+}
+function refreshPlate() {
+  const a = G.areas.cuisine; if (!a) return;
+  const last = [...S.items].reverse().find(i => i.kind === 'plat');
+  a.dishMesh.visible = !!last;
+  if (last) a.dishMesh.material = M({ ratatouille: 0xC0392B, tarte: 0xF2B705, soupe: 0x97C459, omelette: 0xF6D365, croque: 0xE9C46A }[last.recipe] || 0xE08A3C);
+}
+
+G.openCooking = function () {
+  const d = kitchenState();
+  openPanel('Les fourneaux de Sauce Isson', el => {
+    el.innerHTML = `<div class="big">Que veux-tu cuisiner ?</div><div class="step">Ingrédient de l'île disponible : il donne une touche maison. Sinon, Sauce Isson dépanne (gratuit).</div><div class="grid" style="margin-top:10px">` +
+      RECIPES.map(r => `<button class="btn" data-r="${r.id}" style="flex-direction:column;align-items:flex-start;text-align:left;min-height:64px"><b>${r.name}</b><span style="font-size:12px;color:var(--mute)">${hasIngredient(r) ? 'Avec tes ingrédients de l\'île' : 'Avec le garde-manger de secours'}${d[r.id] ? ' · cuisiné × ' + d[r.id] : ''}</span></button>`).join('') + `</div>`;
+    el.querySelectorAll('[data-r]').forEach(b => b.onclick = () => cook(el, RECIPES.find(r => r.id === b.dataset.r)));
+  }, () => { if (!s2State().keys.cuisine && Object.keys(kitchenState()).length && (s2State().met || {}).cuisine) setTimeout(() => G.talkSauceIsson(true), 300); });
+};
+function cook(el, r) {
+  const own = hasIngredient(r);
+  runSteps(el, [
+    { txt: r.chop + '.', sub: own ? 'Ingrédient récolté sur l\'île : ça sent bon la maison.' : 'Ingrédient du garde-manger de secours.', label: 'Tchac', n: 6, snd: 'tink' },
+    { txt: r.stir + ', tout doucement.', label: 'Remuer', n: 5, snd: 'soft' },
+    { txt: 'Dresse l\'assiette avec élégance.', sub: 'Touche dans la zone verte.', label: 'Dresser' }
+  ], wonky => {
+    const d = kitchenState(); d[r.id] = (d[r.id] || 0) + 1;
+    const it = { id: S.nextId++, kind: 'plat', recipe: r.id, wonky, name: wonky ? r.ko : r.name + (own ? ' maison' : '') };
+    S.items.push(it); save(); refreshPlate(); sfx(wonky ? 'boing' : 'sparkle');
+    resultView(el, wonky ? 'Une création… inattendue !' : 'Un vrai délice !', it.name, wonky ? 'Rangé dans tes Curiosités. Ça se mange quand même (sans doute).' : 'Rangé dans ton sac. Il sent tellement bon…', [['Continuer', closePanel], ['Cuisiner autre chose', () => G.openCooking()]]);
+  });
+}
+G.talkSauceIsson = function (auto) {
+  const a = G.areas.cuisine, z = s2State();
+  faceNpc(a.npc);
+  if (!z.met || !z.met.cuisine) {
+    if (auto) return;
+    s2Met('cuisine');
+    dialog([
+      { name: 'Sauce Isson', text: 'Ah, {nick} ! Entre, entre, ça sent bon, hein ? Je suis Sauce Isson, chef de cette cuisine.' },
+      { name: 'Sauce Isson', text: 'Ici, on cuisine avec ce que l\'île nous offre : les légumes de la serre, les fromages de l\'affineur…' },
+      { name: 'Sauce Isson', text: 'Et si tu n\'as rien, pas grave : mon garde-manger de secours dépanne. Enfin… ce qu\'il en reste.' },
+      { name: 'Sauce Isson', text: 'Va aux fourneaux et prépare-moi un plat. N\'importe lequel. Je te raconterai ensuite ce qui est arrivé à mon garde-manger.' }
+    ], () => showHint('Cuisine un plat aux fourneaux (au fond, à gauche).', 7000));
+    return;
+  }
+  if (!z.keys.cuisine && Object.keys(kitchenState()).length) {
+    giveS2Key('cuisine', [
+      { name: 'Sauce Isson', text: 'Mmmh ! Réussi ou raté, un plat cuisiné avec le cœur, c\'est toujours un bon plat.' },
+      { name: 'Sauce Isson', text: 'Tiens, ma toque de chef. Elle te va mieux qu\'à moi, de toute façon.' },
+      { name: 'Sauce Isson', text: 'Et pour mon garde-manger…' }
+    ]);
+    return;
+  }
+  if (auto) return;
+  if (!z.keys.cuisine) { dialog([{ name: 'Sauce Isson', text: 'Les fourneaux t\'attendent ! Un seul plat suffit. Raté, c\'est permis.' }]); return; }
+  dialog([{ name: 'Sauce Isson', text: pick([
+    'Un bon plat, ça calme toutes les faims. Même celle d\'une mante, j\'en suis sûr.',
+    'Le secret d\'une bonne soupe ? La patience. Et un oignon qui n\'a pas peur.',
+    'Garde toujours un bon plat sous la main. On ne sait jamais qui on va croiser.',
+    'Mon rêve ? Ouvrir une cantine au 7ème Ciel. Cuisine aérienne, évidemment.'
+  ]) }]);
+};
+BAG_SECTIONS.push(() => s2On() ? `<div class="sec">La Cuisine de Sauce Isson</div><div class="grid">` + RECIPES.map(r => kitchenState()[r.id] ? `<div class="card"><div class="t">${r.name}</div><div>Cuisiné × ${kitchenState()[r.id]}</div></div>` : `<div class="card ghost"><div class="t">???</div><div>Recette à cuisiner</div></div>`).join('') + `</div>` : '');
+CURIO_SOURCES.push(() => S.items.filter(i => i.kind === 'plat' && i.wonky).map(it => `<div class="card"><div class="t">${esc(it.name)}</div><div>Plat raté (mais fier)</div></div>`));
+
+/* ============ S2 · Le cinéma de Pop Corinne : courts-métrages maison et machine à popcorn (suspecte) ============ */
+function cineState() { const z = s2State(); z.cine = z.cine || {}; z.cine.films = z.cine.films || {}; z.cine.pop = z.cine.pop || 0; return z.cine; }
+const FILMS = [
+  { id: 'bulle', title: 'Glouglo et la Grande Bulle', lines: [
+    'Le rideau s\'ouvre. Un petit poisson bleu nage dans un océan immense.',
+    'Il souffle une bulle. Puis une plus grosse. Puis une bulle GÉANTE.',
+    'Il monte dedans et s\'envole au-dessus des vagues, jusqu\'aux étoiles.',
+    'FIN. Dans la salle, quelqu\'un renifle. C\'était peut-être toi.'],
+    draw(x, t) {
+      const W = 256, H = 144; const gr = x.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#0d2b4a'); gr.addColorStop(1, '#2f6f9a'); x.fillStyle = gr; x.fillRect(0, 0, W, H);
+      for (let i = 0; i < 12; i++) { const bx = (i * 37 + t * 20) % W, by = H - ((t * 30 + i * 23) % H); x.strokeStyle = 'rgba(255,255,255,.5)'; x.beginPath(); x.arc(bx, by, 3 + i % 4, 0, 6.28); x.stroke(); }
+      const r = 10 + Math.min(40, t * 6), fx = W / 2, fy = H / 2 + Math.sin(t) * 8 - Math.max(0, t - 6) * 6;
+      x.strokeStyle = 'rgba(200,240,255,.8)'; x.lineWidth = 2; x.beginPath(); x.arc(fx, fy, r, 0, 6.28); x.stroke();
+      x.fillStyle = '#378ADD'; x.beginPath(); x.ellipse(fx, fy, 14, 9, 0, 0, 6.28); x.fill();
+      x.beginPath(); x.moveTo(fx - 13, fy); x.lineTo(fx - 24, fy - 8); x.lineTo(fx - 24, fy + 8); x.fill();
+      x.fillStyle = '#fff'; x.beginPath(); x.arc(fx + 7, fy - 2, 3, 0, 6.28); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(fx + 8, fy - 2, 1.5, 0, 6.28); x.fill();
+    } },
+  { id: 'grenouille', title: 'La Grenouille à lunettes', lines: [
+    'Une grenouille à lunettes saute de nénuphar en nénuphar.',
+    'Elle rate le dernier. PLOUF. Le public éclate de rire.',
+    'Elle ressort, remet ses lunettes, et salue. Standing ovation.',
+    'FIN. Tu te sens étrangement représentée.'],
+    draw(x, t) {
+      const W = 256, H = 144; x.fillStyle = '#9fd8f0'; x.fillRect(0, 0, W, H); x.fillStyle = '#4E9F45'; x.fillRect(0, H - 34, W, 34);
+      x.fillStyle = '#6FB3D9'; x.fillRect(0, H - 30, W, 30);
+      for (let i = 0; i < 4; i++) { x.fillStyle = '#4E9F45'; x.beginPath(); x.ellipse(30 + i * 62, H - 22, 20, 6, 0, 0, 6.28); x.fill(); }
+      const k = (t * 0.8) % 4, i = Math.floor(k), f = k - i, fx = 30 + (i + f) * 62, fy = H - 32 - Math.sin(f * Math.PI) * 40 + (i === 3 && f > 0.5 ? (f - 0.5) * 60 : 0);
+      x.fillStyle = '#6FAF5B'; x.beginPath(); x.ellipse(fx, fy, 14, 11, 0, 0, 6.28); x.fill();
+      x.strokeStyle = '#2b2236'; x.lineWidth = 2; [-5, 5].forEach(d => { x.beginPath(); x.arc(fx + d, fy - 7, 4, 0, 6.28); x.stroke(); }); x.beginPath(); x.moveTo(fx - 1, fy - 7); x.lineTo(fx + 1, fy - 7); x.stroke();
+    } },
+  { id: 'fromage', title: 'Le Fromage qui voulait voler', lines: [
+    'Un petit fromage rêve de voler. Tout le monde se moque de lui : « un fromage, ça ne vole pas ! »',
+    'Il s\'entraîne. Il tombe. Il recommence. Il sent un peu fort, mais il ne lâche rien.',
+    'Un jour, une montgolfière arc-en-ciel passe. Il saute dans la nacelle.',
+    'FIN. Morale : on n\'a pas besoin d\'ailes, juste des bons amis.'],
+    draw(x, t) {
+      const W = 256, H = 144; const gr = x.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#F5A9B8'); gr.addColorStop(1, '#9fd8f0'); x.fillStyle = gr; x.fillRect(0, 0, W, H);
+      x.fillStyle = 'rgba(255,255,255,.85)'; for (let i = 0; i < 4; i++) { const cx = (i * 80 - t * 15) % (W + 60); x.beginPath(); x.arc(cx < -30 ? cx + W + 60 : cx, 30 + i * 22, 16, 0, 6.28); x.arc((cx < -30 ? cx + W + 60 : cx) + 16, 30 + i * 22, 12, 0, 6.28); x.fill(); }
+      const fx = 40 + (t * 18) % 180, fy = 80 + Math.sin(t * 3) * 14;
+      x.fillStyle = '#F2C94C'; x.beginPath(); x.moveTo(fx - 16, fy + 10); x.lineTo(fx + 16, fy + 10); x.lineTo(fx + 16, fy - 4); x.closePath(); x.fill();
+      x.fillStyle = '#E0A800'; [[fx + 6, fy + 5], [fx + 11, fy + 1]].forEach(([a, b]) => { x.beginPath(); x.arc(a, b, 2, 0, 6.28); x.fill(); });
+      x.fillStyle = 'rgba(255,255,255,.9)'; x.beginPath(); x.ellipse(fx, fy - 6 + Math.sin(t * 12) * 3, 9, 4, -0.5, 0, 6.28); x.fill();
+    } }
+];
+function idleScreen(x, t) {
+  const W = 256, H = 144; x.fillStyle = '#1a1018'; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? '#8B1E3F' : '#A3264C'; x.fillRect(i * 8, 0, 8, H); x.fillRect(W - (i + 1) * 8, 0, 8, H); }
+  x.fillStyle = '#FFD23F'; x.font = '700 15px system-ui, sans-serif'; x.textAlign = 'center';
+  x.fillText('Pop Corinne présente', W / 2, H / 2 - 6); x.font = '12px system-ui, sans-serif'; x.fillStyle = '#fbf6ee'; x.fillText('3 courts-métrages maison', W / 2, H / 2 + 14);
+}
+function makePopCorinne() {
+  const r = makeRobot({ body: 0xE24B4A, band: 0xFBF6EE, browTilt: 0.15, shiny: 30 });
+  for (let i = 0; i < 6; i++) { const st = box(0.06, 0.44, 0.02, M(0xFBF6EE), Math.sin(i / 6 * 6.28) * 0.25, 0.64, Math.cos(i / 6 * 6.28) * 0.25); st.rotation.y = i / 6 * 6.28; r.body.add(st); } // rayures « cornet »
+  r.head.add(cyl(0.3, 0.32, 0.12, 12, M(0x8B1E3F), 0, 0.42, 0)); r.head.add(box(0.36, 0.03, 0.18, M(0x1B1B1E), 0, 0.37, 0.3)); // calot d'ouvreuse
+  for (let i = 0; i < 5; i++) r.head.add(ball(0.05, M(0xFFF3C4), Math.cos(i * 1.3) * 0.12, 0.52, Math.sin(i * 1.3) * 0.12, 0)); // popcorn sur le calot
+  const torch = cyl(0.03, 0.04, 0.2, 6, M(0x5F5E5A), 0, -0.72, 0.06); torch.rotation.x = Math.PI / 2; r.arms[1].add(torch);
+  r.arms[1].add(ball(0.035, new THREE.MeshBasicMaterial({ color: 0xFFF3C4 }), 0, -0.72, 0.17, 0));
+  return r;
+}
+
+function buildCinema() {
+  const a = s2Room('cinema', { floor: 0x3a1420, wall: 0x2b1520, bg: 0x0d0709, sky: 0xffd9c0, ground: 0x200810, hemiI: 0.6, lamp: 0xffb070, lampI: 0.8, door: 0x1B1B1E });
+  const g = a.group;
+  // écran animé
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144; a.scr = cv.getContext('2d'); idleScreen(a.scr, 0);
+  a.scrTex = new THREE.CanvasTexture(cv);
+  g.add(box(6.4, 3.0, 0.06, M(0x1B1B1E), 0, 2.25, -3.47));
+  g.add(mesh(new THREE.PlaneGeometry(6.0, 3.375 * 0.8), new THREE.MeshBasicMaterial({ map: a.scrTex }), 0, 2.25, -3.43));
+  const screenLight = new THREE.PointLight(0x9fd8f0, 0.5, 8, 2); screenLight.position.set(0, 2.0, -2.2); g.add(screenLight); a.screenLight = screenLight;
+  [-1, 1].forEach(s => { const cu = mesh(new THREE.PlaneGeometry(1.0, 3.6), new THREE.MeshPhongMaterial({ map: curtainTexture(), color: 0xC0392B, side: THREE.DoubleSide }), s * 3.6, 2.1, -3.4); g.add(cu); });
+  g.add(box(6.8, 0.3, 0.6, M(0x5a1a2a), 0, 0.15, -3.2));
+  // fauteuils rouges
+  const seatM = M(0xA3264C, { shininess: 20 }), seatD = M(0x6a1830);
+  [-0.4, 0.8].forEach(z => {
+    for (let i = 0; i < 5; i++) { const x = -1.8 + i * 0.9; g.add(box(0.7, 0.35, 0.6, seatM, x, 0.3, z)); g.add(box(0.7, 0.7, 0.14, seatM, x, 0.7, z + 0.28)); g.add(box(0.08, 0.5, 0.6, seatD, x - 0.38, 0.35, z)); }
+    colRect(a, 0, z + 0.05, 2.25, 0.36);
+  });
+  a.interact.push({ x: 0, z: 1.75, r: 0.9, label: 'Regarder un film', act: () => G.openFilms() });
+  // guichet de Pop Corinne
+  g.add(box(1.3, 1.0, 0.6, M(0x8B1E3F), -3.4, 0.5, -2.2)); g.add(box(1.36, 0.06, 0.66, M(0xD9A441, { shininess: 80 }), -3.4, 1.02, -2.2));
+  const tk = textSprite('Billets', { h: 0.35, bg: 'rgba(139,30,63,0.95)', fg: '#FFD23F' }); tk.position.set(-3.4, 1.5, -2.2); g.add(tk);
+  colRect(a, -3.4, -2.2, 0.7, 0.35);
+  // machine à popcorn
+  const mp = { x: 3.3, z: -2.1 }; a.machinePos = mp;
+  const mach = new THREE.Group(); mach.position.set(mp.x, 0, mp.z); g.add(mach); a.machine = mach;
+  mach.add(box(0.9, 0.8, 0.7, M(0xC0392B, { shininess: 40 }), 0, 0.4, 0));
+  [-0.3, 0.3].forEach(dx => { const w = cyl(0.12, 0.12, 0.06, 12, M(0x1B1B1E), dx, 0.1, 0.37); w.rotation.x = Math.PI / 2; mach.add(w); });
+  mach.add(box(0.86, 0.75, 0.66, new THREE.MeshPhongMaterial({ color: 0xFFF6D8, transparent: true, opacity: 0.32, shininess: 150 }), 0, 1.18, 0));
+  for (const dx of [-1, 1]) for (const dz of [-1, 1]) mach.add(box(0.04, 0.75, 0.04, M(0xC0392B), dx * 0.43, 1.18, dz * 0.33));
+  mach.add(box(0.98, 0.14, 0.76, M(0xC0392B), 0, 1.62, 0)); mach.add(mesh(new THREE.ConeGeometry(0.55, 0.3, 4), M(0xFFD23F), 0, 1.84, 0));
+  a.kernels = []; const kM = M(0xFFF3C4, { emissive: 0x4a3a18 }); for (let i = 0; i < 26; i++) { const k = ball(0.045, kM, (Math.random() - 0.5) * 0.7, 0.85 + Math.random() * 0.25, (Math.random() - 0.5) * 0.5, 0); mach.add(k); a.kernels.push({ m: k, y0: k.position.y, ph: Math.random() * 6 }); }
+  const ps = textSprite('POPCORN', { h: 0.32, bg: 'rgba(192,57,43,0.95)', fg: '#FFD23F' }); ps.position.set(0, 2.2, 0); mach.add(ps);
+  colRect(a, mp.x, mp.z, 0.5, 0.4);
+  a.interact.push({ x: mp.x, z: mp.z + 0.95, r: 0.75, label: 'Popcorn', act: () => G.onPopcornMachine() });
+  a.mante = makeMante(); a.mante.visible = false; g.add(a.mante);
+  // Pop Corinne
+  const pc = makePopCorinne(); pc.root.position.set(-3.1, 0, -1.2); pc.root.rotation.y = 0.6; g.add(pc.root); a.npc = pc;
+  colCirc(a, -3.1, -1.2, 0.45);
+  a.interact.push({ x: -2.7, z: -0.4, r: 0.6, label: 'Parler', act: () => G.talkPopCorinne() });
+  a.noiseT = 0; a.jig = 0;
+  a.update = (t, dt) => {
+    pc.update(t);
+    if (a.film) { a.film.t += dt; a.film.f.draw(a.scr, a.film.t); a.scrTex.needsUpdate = true; a.screenLight.intensity = 0.45 + Math.sin(t * 5) * 0.08; }
+    const z = s2State(), suspicious = z.unlocked && !z.solved;
+    if (suspicious) { a.noiseT += dt; if (a.noiseT > 6) { a.noiseT = 0; a.jig = 0.6; if (Math.hypot(G.player.root.position.x - mp.x, G.player.root.position.z - mp.z) < 4) { sfx('pop'); setTimeout(() => sfx('tink'), 180); } } }
+    a.jig = Math.max(0, a.jig - dt);
+    mach.rotation.z = a.jig > 0 ? Math.sin(t * 40) * 0.025 : 0;
+    a.kernels.forEach(k => { k.m.position.y = k.y0 + (a.jig > 0 || a.popping ? Math.abs(Math.sin(t * 12 + k.ph)) * 0.18 : 0); });
+    if (a.mante.visible) { a.mante.rotation.y = Math.sin(t * 1.5) * 0.3; a.mante.position.y = Math.abs(Math.sin(t * 3)) * 0.05; }
+  };
+  return a;
+}
+
+G.openFilms = function () {
+  const c = cineState();
+  openPanel('Au programme ce soir', el => {
+    el.innerHTML = `<div class="big">Choisis un court-métrage. Installe-toi, éteins ton cerveau, profite.</div><div style="margin-top:10px">` +
+      FILMS.map(f => `<button class="btn" data-f="${f.id}" style="width:100%;margin-bottom:8px;text-align:left;min-height:52px">${f.title}${c.films[f.id] ? ' · déjà vu' : ''}</button>`).join('') + `</div>`;
+    el.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { closePanel(); playFilm(FILMS.find(f => f.id === b.dataset.f)); });
+  });
+};
+function playFilm(f) {
+  const a = G.areas.cinema, c = cineState();
+  portrait({ pos: new THREE.Vector3(0, 2.1, 3.1), look: new THREE.Vector3(0, 2.0, -3.4), stand: [3.4, 2.4] }, Math.PI);
+  a.film = { f, t: 0 }; sfx('whoosh');
+  dialog([{ text: `🎬 ${f.title}` }].concat(f.lines.map(l => ({ text: l }))), () => {
+    a.film = null; idleScreen(a.scr, 0); a.scrTex.needsUpdate = true; a.screenLight.intensity = 0.5; endPortrait();
+    c.films[f.id] = true; save(); sfx('chime');
+    if (!s2State().keys.cinema && c.pop > 0 && (s2State().met || {}).cinema) setTimeout(() => G.talkPopCorinne(true), 300);
+    else if (!c.pop) showHint('Un film sans popcorn ? La machine est à droite de l\'écran.', 6000);
+  });
+}
+G.onPopcornMachine = function () {
+  const z = s2State();
+  if (z.accused && !z.solved) { G.popcornConfront(); return; }
+  if (z.unlocked && !z.solved && Math.random() < 0.35) { dialog([{ text: 'Crunch… crunch… La machine fait des bruits toute seule. Bizarre. Tu préfères ne pas trop y penser.' }]); return; }
+  const a = G.areas.cinema, c = cineState();
+  openPanel('La machine à popcorn', el => {
+    a.popping = true;
+    runSteps(el, [
+      { txt: 'Verse le maïs et un peu de beurre fondu.', label: 'Verser', n: 3, snd: 'drop' },
+      { txt: 'Ça chauffe… fais éclater les grains !', label: 'Pop !', n: 8, snd: 'pop' },
+      { txt: 'Remplis le cornet sans en mettre partout.', sub: 'Touche dans la zone verte.', label: 'Remplir' }
+    ], wonky => {
+      a.popping = false; c.pop++; save(); sfx(wonky ? 'boing' : 'sparkle');
+      resultView(el, wonky ? 'Il y en a partout !' : 'Cornet parfait !', wonky ? 'Popcorn en pluie sur la moquette' : 'Un cornet de popcorn tout chaud', wonky ? 'Pop Corinne passera le balai en chantant.' : `Cornets préparés : ${c.pop}`, [['Continuer', closePanel]]);
+    });
+  }, () => { a.popping = false; if (!z.keys.cinema && c.pop > 0 && Object.keys(c.films).length && (z.met || {}).cinema) setTimeout(() => G.talkPopCorinne(true), 300); });
+};
+G.talkPopCorinne = function (auto) {
+  const a = G.areas.cinema, z = s2State(), c = cineState();
+  faceNpc(a.npc);
+  if (!z.met || !z.met.cinema) {
+    if (auto) return;
+    s2Met('cinema');
+    dialog([
+      { name: 'Pop Corinne', text: 'Bonsoir, {nick} ! Bienvenue au cinéma. Ici, toutes les places sont gratuites et tous les films finissent bien.' },
+      { name: 'Pop Corinne', text: 'Je suis Pop Corinne, ouvreuse, projectionniste et reine du popcorn.' },
+      { name: 'Pop Corinne', text: 'Fais-toi un cornet de popcorn, puis regarde un court-métrage. Ensuite, je te dirai ce qui me tracasse.' }
+    ], () => showHint('Prépare un popcorn (machine à droite), puis regarde un film (rangée de fauteuils).', 8000));
+    return;
+  }
+  if (!z.keys.cinema && c.pop > 0 && Object.keys(c.films).length) {
+    giveS2Key('cinema', [
+      { name: 'Pop Corinne', text: 'Popcorn et film : la soirée parfaite. Tu as l\'âme d\'une cinéphile.' },
+      { name: 'Pop Corinne', text: 'Voici le Ticket d\'or : entrée libre à vie. Même pour les avant-premières.' },
+      { name: 'Pop Corinne', text: 'Par contre… il y a un truc qui me tracasse.' }
+    ]);
+    return;
+  }
+  if (auto) return;
+  if (!z.keys.cinema) { dialog([{ name: 'Pop Corinne', text: `Il te manque ${c.pop ? '' : 'un popcorn'}${!c.pop && !Object.keys(c.films).length ? ' et ' : ''}${Object.keys(c.films).length ? '' : 'un film'}. Prends ton temps, la séance ne commence jamais sans toi.` }]); return; }
+  dialog([{ name: 'Pop Corinne', text: pick(z.solved ? [
+    'Mante Ra m\'a rendu tout le maïs. Avec une lettre d\'excuses. En forme de popcorn.',
+    'Plus de bruits la nuit. Je dors comme une bobine.'
+  ] : [
+    'Ma machine fait « crunch » la nuit. Moi, je ne fais pas « crunch » la nuit. Alors qui ?',
+    'Le meilleur siège ? Au milieu, deuxième rang. Comme ça, tu vois tout et personne ne te voit.',
+    'Si tu entends un bruit dans la machine, ne t\'inquiète pas. Enfin… un peu, quand même.'
+  ]) }]);
+};
+
+/* ============ S2 · Le 7ème Ciel : bar à cocktails imaginaires dans une montgolfière arc-en-ciel ============ */
+const MIXES = [
+  ['nuage', 'Nectar de nuage', '#F4F7FB'], ['arc', 'Sirop arc-en-ciel', '#F25C8A'], ['etoile', 'Poussière d\'étoile', '#FFD23F'],
+  ['peche', 'Jus de pêche', '#F6A86B'], ['menthe', 'Menthe fraîche', '#97C459'], ['bulles', 'Bulles pétillantes', '#9fd8f0']
+];
+const COCKTAIL_NAMES = {
+  'nuage+arc': 'Licorne en pyjama', 'nuage+etoile': 'Nuit étoilée', 'nuage+peche': 'Nuage pêchu', 'nuage+menthe': 'Brise du matin', 'nuage+bulles': 'Rêve gazeux',
+  'arc+etoile': 'Paillettes de fierté', 'arc+peche': 'Coucher de soleil', 'arc+menthe': 'Jardin arc-en-ciel', 'arc+bulles': 'Fête dans la bouche',
+  'etoile+peche': 'Comète dorée', 'etoile+menthe': 'Aurore boréale', 'etoile+bulles': 'Pluie de météores',
+  'peche+menthe': 'Verger frais', 'peche+bulles': 'Pétillant de pêche', 'menthe+bulles': 'Mojito des nuages'
+};
+const COCKTAIL_KO = ['Cocktail qui fait des claquettes', 'Mélange qui chante faux', 'Potion qui change d\'avis', 'Verre qui rigole tout seul'];
+function barState() { const z = s2State(); z.bar = z.bar || {}; z.bar.made = z.bar.made || {}; return z.bar; }
+
+function wickerTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#B98F66'; x.fillRect(0, 0, 128, 128);
+  for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { x.fillStyle = (i + j) % 2 ? '#A37A52' : '#C9A27A'; x.beginPath(); x.ellipse(i * 16 + 8, j * 16 + 8, 7, 4, (i + j) % 2 ? 0 : Math.PI / 2, 0, 6.28); x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(5, 5); return t;
+}
+function makeRhumAntik() {
+  const r = makeRobot({ body: 0x732982, band: 0xF5A9B8, shiny: 120, bandShiny: 120, browTilt: 0.18, eyeEmissive: 0x401040 });
+  const bow = new THREE.Group(); bow.position.set(0, 0.9, 0.2); r.body.add(bow);
+  [-1, 1].forEach(s => { const w = mesh(new THREE.ConeGeometry(0.07, 0.12, 4), M(0xFFD23F, { shininess: 80 })); w.rotation.z = s * Math.PI / 2; w.position.x = s * 0.06; bow.add(w); });
+  bow.add(ball(0.03, M(0xFFD23F), 0, 0, 0, 0));
+  [-1, 1].forEach(s => { const h = mesh(new THREE.CircleGeometry(0.05, 12), M(0xF25C8A, { emissive: 0x6a1030 })); h.position.set(s * 0.17, -0.01, 0.475); r.head.add(h); }); // reflets roses dans les yeux
+  const shaker = cyl(0.05, 0.06, 0.2, 10, M(0xE6EBF0, { shininess: 140, specular: 0xffffff }), 0, -0.72, 0.06); r.arms[1].add(shaker);
+  return r;
+}
+
+function buildBar() {
+  const a = newArea('bar', { bounds: { type: 'circle', r: 4.0 }, cam: [0, 6.6, 7.6], bg: 0xF5C6D8 });
+  const g = a.group;
+  // nacelle géante (plancher en osier) et rebord
+  g.add(cyl(4.7, 4.4, 0.4, 32, new THREE.MeshPhongMaterial({ map: wickerTexture(), flatShading: true }), 0, -0.2, 0));
+  const rim = mesh(new THREE.TorusGeometry(4.6, 0.12, 6, 40), M(0x8B5E3C)); rim.rotation.x = Math.PI / 2; rim.position.y = 0.95; g.add(rim);
+  for (let i = 0; i < 40; i++) { const an = i / 40 * 6.28; g.add(cyl(0.03, 0.03, 0.95, 4, M(0xA37A52), Math.cos(an) * 4.6, 0.47, Math.sin(an) * 4.6)); }
+  // cordes vers l'enveloppe arc-en-ciel au-dessus
+  const UP = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < 8; i++) {
+    if (Math.sin(i / 8 * 6.28) > 0.2) continue; // pas de corde devant la caméra
+    const an = i / 8 * 6.28, A = new THREE.Vector3(Math.cos(an) * 4.6, 0.95, Math.sin(an) * 4.6), B = new THREE.Vector3(Math.cos(an) * 2.2, 12.8, Math.sin(an) * 2.2);
+    const d = B.clone().sub(A), rope = cyl(0.025, 0.025, d.length(), 3, M(0x8B6A45), (A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2);
+    rope.quaternion.setFromUnitVectors(UP, d.normalize()); g.add(rope);
+  }
+  const env = makeBalloon(3.2); for (let k = 0; k < 7; k++) env.remove(env.children[env.children.length - 1]); // sans la petite nacelle ni ses cordes
+  env.position.set(0, 22, 0); g.add(env); a.env = env;
+  // nuages tout autour (en dessous et à l'horizon)
+  const cloudM = new THREE.MeshLambertMaterial({ color: 0xffffff }); a.clouds = [];
+  for (let i = 0; i < 18; i++) { const cg = new THREE.Group(), an = i / 18 * 6.28, rr = 9 + (i % 4) * 4; for (let k = 0; k < 4; k++) cg.add(ball(1.2 + (k % 2) * 0.5, cloudM, k * 1.3 - 2, Math.sin(k) * 0.4, 0, 1)); cg.position.set(Math.cos(an) * rr, -3 - (i % 3) * 2, Math.sin(an) * rr); cg.rotation.y = -an; g.add(cg); a.clouds.push({ cg, an, rr }); }
+  // comptoir arrondi et étagère à sirops
+  const bar = mesh(new THREE.CylinderGeometry(2.6, 2.6, 1.0, 24, 1, true, Math.PI * 0.72, Math.PI * 0.56), M(0x5B3A8C, { side: THREE.DoubleSide, shininess: 60 }), 0, 0.5, 0.4); g.add(bar);
+  const top = mesh(new THREE.RingGeometry(2.45, 2.75, 24, 1, Math.PI * 0.22, Math.PI * 0.56), M(0xF5A9B8, { side: THREE.DoubleSide, shininess: 90 })); top.rotation.x = -Math.PI / 2; top.position.set(0, 1.01, 0.4); g.add(top);
+  MIXES.forEach(([, , col], i) => { g.add(cyl(0.07, 0.08, 0.32, 8, new THREE.MeshPhongMaterial({ color: col, transparent: true, opacity: 0.85, shininess: 120 }), -0.9 + i * 0.36, 1.2, -2.15)); });
+  for (let k = 0; k <= 8; k++) { const th = Math.PI * (0.72 + 0.56 * k / 8); colCirc(a, Math.sin(th) * 2.6, 0.4 + Math.cos(th) * 2.6, 0.3); } // comptoir en arc
+  // Rhum Antik derrière le comptoir
+  const ra = makeRhumAntik(); ra.root.position.set(0, 0, -2.75); g.add(ra.root); a.npc = ra;
+  colCirc(a, 0, -2.75, 0.5);
+  a.interact.push({ x: -0.8, z: -1.15, r: 0.65, label: 'Parler', act: () => G.talkRhumAntik() });
+  a.interact.push({ x: 0.8, z: -1.15, r: 0.65, label: 'Cocktails', act: () => G.openCocktail() });
+  // deux scènes avec barre de pole dance
+  const chrome = FINISH.chrome.mat();
+  const stage = (x, z, col) => { g.add(cyl(0.9, 0.95, 0.2, 20, M(col, { shininess: 60 }), x, 0.1, z)); g.add(cyl(0.045, 0.045, 3.4, 10, chrome, x, 1.9, z)); colCirc(a, x, z, 0.95); };
+  stage(2.6, 0.9, 0x24408E); stage(-2.6, 0.9, 0x732982);
+  a.manteHale = makeMante(0x7FBF6A); g.add(a.manteHale);
+  a.lapi = makeLapinouche(0xF4D7E4); a.lapi.scale.setScalar(1.3); g.add(a.lapi);
+  a.libs = [makeLibellule(0x2BB5B0), makeLibellule(0xF25C8A), makeLibellule(0xFFD23F)]; a.libs.forEach(l => { l.scale.setScalar(1.6); g.add(l); });
+  a.interact.push({ x: 2.6, z: 2.2, r: 0.7, label: 'Mante Hâle', act: () => G.talkDancer('mante') });
+  a.interact.push({ x: -2.6, z: 2.2, r: 0.7, label: 'Lapi Lazuli', act: () => G.talkDancer('lapi') });
+  // le spot vide de Mante Ra (centre)
+  const spot = mesh(new THREE.CircleGeometry(0.7, 20), M(0xFFF3C4, { emissive: 0x3a3010 })); spot.rotation.x = -Math.PI / 2; spot.position.set(0, 0.02, 1.9); g.add(spot);
+  a.raPole = cyl(0.045, 0.045, 3.4, 10, chrome, 0, 1.7, 1.9); g.add(a.raPole); colCirc(a, 0, 1.9, 0.15);
+  a.raSign = textSprite('Mante Ra (absente)', { h: 0.38, bg: 'rgba(43,34,54,0.9)', fg: '#F5A9B8' }); a.raSign.position.set(0, 2.2, 1.9); g.add(a.raSign);
+  a.ra = makeMante(0x5FA34E); a.ra.scale.setScalar(1.15); g.add(a.ra);
+  a.interact.push({ x: 0, z: 2.9, r: 0.65, label: 'Le spot vide', act: () => G.talkDancer('ra') });
+  // trappe et échelle pour redescendre
+  g.add(box(0.9, 0.04, 0.9, M(0x5A3A26), -1.4, 0.01, 3.5));
+  [-0.3, 0.3].forEach(dx => g.add(cyl(0.025, 0.025, 1.0, 4, M(0x8B6A45), -1.4 + dx, 0.5, 3.95)));
+  a.interact.push({ x: -1.4, z: 3.5, r: 0.7, label: 'Descendre', act: () => G.goArea('island', 'bar') });
+  a.spawns.door = { x: -1.0, z: 2.7, face: Math.PI };
+  // lumières de fête
+  g.add(new THREE.HemisphereLight(0xfff0f8, 0x7a5a9a, 0.75));
+  const spots = [0xF25C8A, 0x5BCEFA, 0xFFD23F].map((c, i) => { const l = new THREE.PointLight(c, 0.7, 9, 1.6); l.position.set(0, 3, 0); g.add(l); return l; });
+  a.onEnter = () => { G.scene.background = new THREE.Color(0xF5C6D8); G.scene.fog = new THREE.Fog(0xF5C6D8, 18, 60); refreshBarStage(); };
+  a.update = (t) => {
+    ra.update(t); ra.arms[1].rotation.x = -1.2 + Math.sin(t * 9) * 0.35; // secoue le shaker
+    spots.forEach((l, i) => { const an = t * 0.7 + i * 2.1; l.position.set(Math.cos(an) * 2.5, 3, 0.8 + Math.sin(an) * 2); });
+    env.rotation.y = t * 0.04;
+    a.clouds.forEach((c, i) => { c.cg.position.y += Math.sin(t * 0.3 + i) * 0.002; });
+    // danse autour des barres
+    const mh = a.manteHale, an1 = t * 1.1; mh.position.set(2.6 + Math.cos(an1) * 0.42, 0.2 + Math.max(0, Math.sin(t * 0.9)) * 0.9, 0.9 + Math.sin(an1) * 0.42); mh.rotation.y = -an1 + Math.PI; mh.rotation.z = Math.sin(t * 1.3) * 0.25;
+    const lp = a.lapi, an2 = -t * 1.4; lp.position.set(-2.6 + Math.cos(an2) * 0.45, 0.2 + Math.abs(Math.sin(t * 2.8)) * 0.5, 0.9 + Math.sin(an2) * 0.45); lp.rotation.y = -an2;
+    a.libs.forEach((l, i) => { const an = t * (1.4 + i * 0.2) + i * 2.1, cx = i === 1 ? -2.6 : 2.6; l.position.set(cx + Math.cos(an) * 0.9, 1.6 + Math.sin(t * 2 + i) * 0.9, 0.9 + Math.sin(an) * 0.9); l.rotation.y = -an; l.flap(t); });
+    if (a.ra.visible) { const an3 = t * 1.2; a.ra.position.set(Math.cos(an3) * 0.42, 0.1 + Math.max(0, Math.sin(t)) * 1.1, 1.9 + Math.sin(an3) * 0.42); a.ra.rotation.y = -an3 + Math.PI; a.ra.rotation.z = Math.sin(t * 1.5) * 0.3; }
+  };
+  return a;
+}
+function refreshBarStage() { const a = G.areas.bar, solved = !!s2State().solved; a.ra.visible = solved; a.raSign.visible = !solved; }
+
+G.openCocktail = function () {
+  const b = barState(); let sel = [];
+  openPanel('Le shaker de Rhum Antik', el => {
+    const render = () => {
+      el.innerHTML = stepHead(1, 3, 'Choisis 2 ingrédients imaginaires.', 'Zéro alcool, cent pour cent rêve.') + `<div class="grid" style="margin-top:10px">` +
+        MIXES.map(([k, l, c]) => `<button class="btn ${sel.includes(k) ? 'on' : ''}" data-m="${k}"><span class="sw" style="background:${c}"></span>${l}</button>`).join('') + `</div>
+        <button class="btn main" id="mixGo" style="width:100%;margin-top:12px;min-height:56px" ${sel.length === 2 ? '' : 'disabled'}>${sel.length === 2 ? 'Secouer !' : `Encore ${2 - sel.length} ingrédient${sel.length ? '' : 's'}`}</button>`;
+      el.querySelectorAll('[data-m]').forEach(bt => bt.onclick = () => { const k = bt.dataset.m; sel = sel.includes(k) ? sel.filter(x => x !== k) : sel.length < 2 ? sel.concat(k) : [sel[1], k]; sfx('tink'); render(); });
+      $('#mixGo').onclick = () => { if (sel.length === 2) shakeAndPour(el, sel.slice()); };
+    };
+    render();
+  }, () => { if (!s2State().keys.bar && Object.keys(barState().made).length && (s2State().met || {}).bar) setTimeout(() => G.talkRhumAntik(true), 300); });
+};
+function shakeAndPour(el, sel) {
+  const key = MIXES.map(m => m[0]).filter(k => sel.includes(k)).join('+');
+  const steps = [{ txt: 'Secoue le shaker en rythme.', label: 'Shake', n: 7, snd: 'drop' }, { txt: 'Verse dans le verre, sans en renverser.', sub: 'Touche dans la zone verte.', label: 'Verser' }];
+  let i = 1, wonky = false;
+  const next = () => {
+    const s = steps[i - 1], head = stepHead(i + 1, 3, s.txt, s.sub); i++;
+    if (s.n) tapStep(el, head, s.label, s.n, s.snd, next);
+    else timingStep(el, head, s.label, ok => {
+      wonky = !ok; const b = barState(), name = wonky ? pick(COCKTAIL_KO) : COCKTAIL_NAMES[key];
+      b.made[wonky ? 'ko' : key] = (b.made[wonky ? 'ko' : key] || 0) + 1; save(); sfx(wonky ? 'boing' : 'sparkle');
+      const n = Object.keys(b.made).filter(k => k !== 'ko').length;
+      resultView(el, wonky ? 'Oups, ça déborde !' : 'Santé (imaginaire) !', name, wonky ? 'Rhum Antik le boit quand même, ému.' : `Recettes découvertes : ${n} / 15`, [['Continuer', closePanel], ['Un autre !', () => G.openCocktail()]]);
+    });
+  };
+  next();
+}
+G.talkDancer = function (who) {
+  const solved = !!s2State().solved;
+  if (who === 'mante') dialog([{ name: 'Mante Hâle', text: pick(solved ? ['Ma cousine est revenue ! Elle a promis de ne manger que du popcorn et des plats de Sauce Isson. Je la surveille.', 'Tu veux apprendre la figure du « bâton de cannelle » ? Il faut quatre bras. Désolée.'] : ['Je suis Mante Hâle, la cousine de Mante Ra. Rassure-toi : moi, je suis végétarienne. Enfin, popcornivore.', 'Ma cousine danse mieux que moi. Mais elle a toujours faim. TOUJOURS.', 'Une mante, ça adore les coins sombres et chauds. C\'est génétique, chérie.']) }]);
+  else if (who === 'lapi') dialog([{ name: 'Lapi Lazuli', text: pick(['Je fais la toupie autour de la barre. Après, je vois des carottes partout pendant dix minutes.', 'Mes cousines vivent au terrier. Elles voient tout, elles entendent tout, elles racontent tout.', 'Danser, c\'est comme sauter, mais en tournant. Et avec des paillettes.']) }]);
+  else dialog([{ text: solved ? 'Mante Ra tournoie autour de la barre, sous les applaudissements. Elle te fait un clin d\'œil… à cinq facettes.' : 'Le spot de la danseuse vedette est vide. Sur la barre, quelques miettes de popcorn… et une trace de beurre.' }]);
+};
+G.talkRhumAntik = function (auto) {
+  const a = G.areas.bar, z = s2State();
+  faceNpc(a.npc);
+  if (!z.met || !z.met.bar) {
+    if (auto) return;
+    s2Met('bar');
+    dialog([
+      { name: 'Rhum Antik', text: 'Bienvenue au 7ème Ciel, {nick}. Ici, on flotte entre les nuages, et chacun peut être exactement qui il est.' },
+      { name: 'Rhum Antik', text: 'Je suis Rhum Antik. Je sers des cocktails imaginaires : zéro alcool, cent pour cent rêve.' },
+      { name: 'Rhum Antik', text: 'Mais ce soir, le cœur n\'y est pas. Notre étoile, Mante Ra, a disparu. Son spot est vide, là, au milieu.' },
+      { name: 'Rhum Antik', text: 'Prépare-toi un cocktail au shaker, et je te confierai ce que je sais d\'elle.' }
+    ], () => showHint('Prépare un cocktail imaginaire (côté droit du comptoir).', 7000));
+    return;
+  }
+  if (!z.keys.bar && Object.keys(barState().made).length) {
+    giveS2Key('bar', [
+      { name: 'Rhum Antik', text: 'Ah… ce cocktail a le goût d\'un premier rendez-vous sous les étoiles.' },
+      { name: 'Rhum Antik', text: 'Prends ce parasol arc-en-ciel. Il protège de la pluie, du soleil, et des jours tristes.' },
+      { name: 'Rhum Antik', text: 'Quant à Mante Ra…' }
+    ]);
+    return;
+  }
+  if (auto) return;
+  if (!z.keys.bar) { dialog([{ name: 'Rhum Antik', text: 'Le shaker t\'attend, mon cœur. Deux ingrédients, un peu de rythme, beaucoup d\'amour.' }]); return; }
+  dialog([{ name: 'Rhum Antik', text: pick(z.solved ? [
+    'Mante Ra est revenue. Le 7ème Ciel a retrouvé sa reine. Je pourrais pleurer. Je pleure, d\'ailleurs.',
+    'Elle mange maintenant les plats de Sauce Isson. Elle danse encore mieux, le ventre plein.'
+  ] : [
+    'L\'amour, c\'est comme un cocktail : il faut doser, secouer, et ne pas avoir peur des couleurs.',
+    'Au 7ème Ciel, toutes les couleurs dansent ensemble. C\'est pour ça que la montgolfière est si belle.',
+    'Mante Ra et moi, on parlait des heures. Surtout de nourriture. Elle parlait beaucoup de nourriture.'
+  ]) }]);
+};
+
+/* ============ S2 · Le terrier des Lapinouches : câlins et cache-cache avec Carot Line ============ */
+const HOLES = [[-3.2, -3.35], [-1.6, -3.35], [0.2, -3.35], [2.0, -3.35], [3.6, -3.35], [4.35, -1.0]];
+function burrowState() { const z = s2State(); z.bur = z.bur || { hugs: 0, found: 0 }; return z.bur; }
+function soilTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const rnd = seeded(77);
+  x.fillStyle = '#6B4A2E'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 260; i++) { x.fillStyle = rnd() > 0.5 ? 'rgba(40,24,12,.35)' : 'rgba(160,120,80,.25)'; x.beginPath(); x.arc(rnd() * 128, rnd() * 128, 1 + rnd() * 3, 0, 6.28); x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t;
+}
+function makeCarotLine() {
+  const r = makeRobot({ body: 0xF28C38, band: 0xFBF6EE, browTilt: 0.1, shiny: 20 });
+  for (let i = 0; i < 5; i++) { const l = mesh(new THREE.ConeGeometry(0.06, 0.4, 4), M(0x6FAF5B), Math.cos(i * 1.25) * 0.06, 0.55, Math.sin(i * 1.25) * 0.06); l.rotation.set(Math.sin(i * 1.25) * 0.5, 0, -Math.cos(i * 1.25) * 0.5); r.head.add(l); } // fanes de carotte
+  [-1, 1].forEach(s => { const e = ball(0.08, M(0xFBF6EE), s * 0.22, 0.6, -0.05, 1); e.scale.set(0.6, 2.4, 0.5); e.rotation.z = -s * 0.3; r.head.add(e); const ei = ball(0.05, M(0xF4C0D1), s * 0.22, 0.6, -0.01, 1); ei.scale.set(0.5, 2.1, 0.3); ei.rotation.z = -s * 0.3; r.head.add(ei); }); // oreilles
+  [-1, 1].forEach(s => r.head.add(ball(0.045, M(0xF0A9A9), s * 0.28, -0.1, 0.33, 0))); // joues roses
+  return r;
+}
+
+function buildTerrier() {
+  const soil = new THREE.MeshPhongMaterial({ map: soilTexture(), flatShading: true, shininess: 2 });
+  const a = s2Room('terrier', { floor: 0x8B6A45, wallMat: soil, bg: 0x140c08, sky: 0xffe0b0, ground: 0x2a1a10, hemiI: 0.55, lamp: 0xffc070, lampI: 1.0, door: 0x8B5E3C });
+  const g = a.group;
+  // racines au plafond et sur les murs
+  for (let i = 0; i < 14; i++) { const rt = cyl(0.03, 0.06, 1.2 + (i % 3) * 0.5, 5, M(0x8B6A45), -4 + i * 0.6, 3.6, -3.4 + (i % 2) * 0.1); rt.rotation.z = Math.sin(i) * 0.3; g.add(rt); }
+  // champignons lumineux
+  const glows = [];
+  [[-3.9, -2.5], [3.9, 1.5], [-0.8, -3.2], [2.8, -3.2], [3.9, -2.6]].forEach(([x, z], i) => {
+    g.add(cyl(0.04, 0.05, 0.25, 6, M(0xFBF6EE), x, 0.12, z));
+    const cap = mesh(new THREE.SphereGeometry(0.16, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), M([0xF4C0D1, 0x9fd8f0, 0xFFD23F][i % 3], { emissive: [0x5a2040, 0x204a5a, 0x5a4a10][i % 3] }), x, 0.25, z); g.add(cap); glows.push(cap);
+  });
+  // trous de cache-cache (mur du fond et mur droit)
+  HOLES.forEach(([x, z], i) => {
+    const h = mesh(new THREE.CircleGeometry(0.42, 16), M(0x1a0f08), x, 0.45, z + (i < 5 ? 0 : 0)); if (i === 5) { h.rotation.y = -Math.PI / 2; h.position.x = 4.38; } g.add(h);
+    const rim = mesh(new THREE.TorusGeometry(0.44, 0.06, 5, 16), M(0x5a3a26), h.position.x - (i === 5 ? 0.01 : 0), 0.45, h.position.z + (i === 5 ? 0 : 0.01)); rim.rotation.y = h.rotation.y; g.add(rim);
+  });
+  a.interact.push({ x: 0.2, z: -2.4, r: 0.9, label: 'Cache-cache', act: () => G.openHideSeek() });
+  // tas de coussins et lapinouches
+  g.add(cyl(1.1, 1.2, 0.25, 16, M(0xD8A0B8), 2.4, 0.12, 1.2)); g.add(cyl(0.9, 1.0, 0.2, 16, M(0xF4C0D1), 2.4, 0.32, 1.2));
+  colCirc(a, 2.4, 1.2, 1.1);
+  a.interact.push({ x: 1.0, z: 1.6, r: 0.7, label: 'Câlin', act: () => G.openHug() });
+  a.buns = [];
+  const cols = [0xFBF6EE, 0xE8D8C4, 0xD9C7A3, 0xF4D7E4, 0xC9B8A8, 0xFFFFFF];
+  for (let i = 0; i < 6; i++) { const b = makeLapinouche(cols[i]); const pile = i < 3; b.userData = pile ? { pile: true, x: 2.4 + Math.cos(i * 2.1) * 0.5, z: 1.2 + Math.sin(i * 2.1) * 0.5 } : { x: -2 + i * 0.6, z: 0.5, tx: 0, tz: 0, w: 0 }; b.position.set(b.userData.x, pile ? 0.42 : 0, b.userData.z); g.add(b); a.buns.push(b); }
+  // table à carottes
+  g.add(box(1.2, 0.08, 0.7, M(0xA87C55), -2.4, 0.7, -1.4)); [[-0.5, -0.28], [0.5, -0.28], [-0.5, 0.28], [0.5, 0.28]].forEach(([dx, dz]) => g.add(box(0.06, 0.7, 0.06, M(0xA87C55), -2.4 + dx, 0.35, -1.4 + dz)));
+  for (let i = 0; i < 5; i++) { const c = mesh(new THREE.ConeGeometry(0.05, 0.3, 6), M(0xF28C38), -2.8 + i * 0.2, 0.8, -1.4); c.rotation.z = Math.PI / 2; g.add(c); }
+  colRect(a, -2.4, -1.4, 0.65, 0.4);
+  // Carot Line
+  const cl = makeCarotLine(); cl.root.position.set(-1.0, 0, -2.2); g.add(cl.root); a.npc = cl;
+  colCirc(a, -1.0, -2.2, 0.5);
+  a.interact.push({ x: -1.2, z: -1.2, r: 0.6, label: 'Parler', act: () => G.talkCarotLine() });
+  a.update = (t, dt) => {
+    cl.update(t);
+    glows.forEach((c, i) => c.scale.setScalar(1 + Math.sin(t * 1.5 + i) * 0.05));
+    a.buns.forEach((b, i) => {
+      const u = b.userData;
+      if (u.pile) { b.position.y = 0.42 + Math.abs(Math.sin(t * 1.2 + i)) * 0.03; b.rotation.y = Math.sin(t * 0.4 + i) * 0.5; return; }
+      if (u.w > 0) { u.w -= dt; b.position.y = 0; return; }
+      if (!u.tx) { u.tx = rand(-3.5, 0.5); u.tz = rand(-0.4, 2.6); }
+      const dx = u.tx - u.x, dz = u.tz - u.z, d = Math.hypot(dx, dz);
+      if (d < 0.15) { u.tx = 0; u.w = rand(1, 3); } else { u.x += dx / d * 0.9 * dt; u.z += dz / d * 0.9 * dt; b.rotation.y = Math.atan2(dx, dz); }
+      b.position.set(u.x, Math.abs(Math.sin(t * 6 + i)) * 0.15, u.z);
+    });
+  };
+  return a;
+}
+
+G.openHug = function () {
+  const bur = burrowState();
+  openPanel('Câlin de lapinouches', el => {
+    tapStep(el, `<div class="big">Les lapinouches se blottissent contre toi. Caresse-les doucement.</div><div class="step">Câlins déjà donnés : ${bur.hugs}</div>`, 'Caresser', 6, 'soft', () => {
+      bur.hugs++; save(); sfx('sparkle');
+      resultView(el, 'Ronron de lapinouche !', pick(['Une lapinouche s\'est endormie sur tes genoux', 'Trois lapinouches te font un bisou de nez', 'Une lapinouche te tend une carotte (déjà croquée)']), 'Le terrier entier ronronne.', [['Continuer', closePanel], ['Encore un câlin', () => G.openHug()]]);
+    });
+  });
+};
+G.openHideSeek = function () {
+  const bur = burrowState(), hidden = Math.floor(Math.random() * HOLES.length); let tries = 0; const opened = {};
+  openPanel('Cache-cache', el => {
+    const render = (msg) => {
+      el.innerHTML = `<div class="big">Une lapinouche s'est cachée dans un des trous. Lequel ?</div><div class="step">${msg || 'Pas de limite : elle finit toujours par sortir en riant.'}</div>
+        <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">${HOLES.map((_, i) => `<button class="btn" data-h="${i}" style="min-height:72px;font-size:26px;${opened[i] ? 'opacity:.4' : ''}" ${opened[i] ? 'disabled' : ''}>${opened[i] ? '·' : '◯'}</button>`).join('')}</div>`;
+      el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => {
+        const i = +b.dataset.h; tries++;
+        if (i === hidden || tries >= 4) { found(i === hidden); return; }
+        opened[i] = true; sfx('boing'); render(pick(['Vide ! Juste une carotte oubliée.', 'Rien… à part un petit rire étouffé quelque part.', 'Personne ! Mais ça sent le pompon.']));
+      });
+    };
+    const found = (byYou) => {
+      bur.found++; save(); sfx('chime');
+      resultView(el, byYou ? 'Trouvée !' : 'Elle sort toute seule !', byYou ? 'Coucou ! La lapinouche saute dans tes bras.' : 'La lapinouche n\'en pouvait plus de rire et a jailli de sa cachette.', `Parties de cache-cache : ${bur.found}`, [['Continuer', closePanel], ['Rejouer', () => G.openHideSeek()]]);
+    };
+    render();
+  }, () => { if (!s2State().keys.terrier && burrowState().found && (s2State().met || {}).terrier) setTimeout(() => G.talkCarotLine(true), 300); });
+};
+G.talkCarotLine = function (auto) {
+  const a = G.areas.terrier, z = s2State(), bur = burrowState();
+  faceNpc(a.npc);
+  if (!z.met || !z.met.terrier) {
+    if (auto) return;
+    s2Met('terrier');
+    dialog([
+      { name: 'Carot Line', text: 'Oh ! Une visite ! Entre, {nick}, mais baisse la tête : le plafond est bas et les racines chatouillent.' },
+      { name: 'Carot Line', text: 'Je suis Carot Line, la gardienne du terrier. Ici vivent les lapinouches : douces, curieuses, et très bavardes.' },
+      { name: 'Carot Line', text: 'Elles adorent jouer à cache-cache. Fais une partie avec elles : elles te raconteront ce qu\'elles ont vu.' }
+    ], () => showHint('Joue à cache-cache devant les trous du fond. Un câlin sur les coussins, aussi ?', 7000));
+    return;
+  }
+  if (!z.keys.terrier && bur.found) {
+    giveS2Key('terrier', [
+      { name: 'Carot Line', text: 'Les lapinouches t\'adorent ! Elles ont voté : tu es membre d\'honneur du terrier.' },
+      { name: 'Carot Line', text: 'Voici un pompon de lapinouche. Tout doux, porte-bonheur, et il sent la carotte.' },
+      { name: 'Carot Line', text: 'Et elles ont quelque chose à te dire…' }
+    ]);
+    return;
+  }
+  if (auto) return;
+  if (!z.keys.terrier) { dialog([{ name: 'Carot Line', text: 'Une partie de cache-cache, et les lapinouches te diront tout. Elles ne savent pas garder un secret.' }]); return; }
+  dialog([{ name: 'Carot Line', text: pick([
+    'Une lapinouche, ça dort seize heures par jour. Le reste du temps, ça fait des câlins. C\'est un mode de vie.',
+    'Les lapinouches ne mangent ni poisson ni insecte. Juste des carottes. Et parfois un bouton de manteau, par erreur.',
+    'Lapi Lazuli, la danseuse du 7ème Ciel, est née ici. On est très fiers d\'elle.',
+    z.solved ? 'Mante Ra est venue s\'excuser pour le sac de maïs. Les lapinouches lui ont fait un câlin collectif.' : 'Une ombre verte, un sac de maïs… les lapinouches en font encore des cauchemars. Doux, les cauchemars.'
+  ]) }]);
+};
+
 /* ============ Le jeu : boucle, histoire, atelier de bijoux, inventaire ============ */
 const renderer = new THREE.WebGLRenderer({ canvas: $('#c'), antialias: true, powerPreference: 'low-power' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -2699,6 +3703,7 @@ function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h
 addEventListener('resize', resize); resize();
 
 buildRoom(); buildIsland(); buildAtelier(); buildSerre(); buildFromagerie(); buildJardin(); buildCraft(); buildDnd();
+buildSport(); buildCuisine(); buildCinema(); buildBar(); buildTerrier(); // Saison 2
 G.player = makeHeroine(); G.scene.add(G.player.root);
 
 const KEY_UNIVERSES = [
@@ -2844,6 +3849,8 @@ G.onAreaEntered = function (name) {
   if (name === 'jardin' && !S.flags.zenSeen) { S.flags.zenSeen = true; save(); showHint('Baby Lone médite près du bassin. Glouglo nage autour.', 6000); }
   if (name === 'fromagerie' && !S.flags.fromSeen) { S.flags.fromSeen = true; save(); showHint('Raphafromaj t\'attend derrière son comptoir.', 6000); }
   if (name === 'serre' && !S.flags.serreSeen) { S.flags.serreSeen = true; save(); showHint('Maide Eric t\'attend au fond de la serre.', 6000); }
+  const S2HINT = { sport: 'Hal Tère s\'étire près des haltères.', cuisine: 'Sauce Isson goûte sa sauce près des fourneaux.', cinema: 'Pop Corinne t\'attend près du guichet.', bar: 'Rhum Antik secoue son shaker derrière le comptoir.', terrier: 'Carot Line veille sur ses lapinouches.' };
+  if (S2HINT[name] && !S.flags['s2seen_' + name]) { S.flags['s2seen_' + name] = true; save(); showHint(S2HINT[name], 6000); }
   if (name === 'atelier' && !S.flags.atelierSeen) { S.flags.atelierSeen = true; save(); showHint('Isopodia t\'attend derrière son comptoir.', 6000); }
 };
 const hasSuccessCollier = () => S.items.some(i => i.type === 'collier' && !i.wonky);
@@ -3012,7 +4019,8 @@ let bagTab = 'collection';
 function openBag(tab, onClose) { if (tab) bagTab = tab; openPanel('Mon sac', renderBag, onClose); }
 $('#btnBag').addEventListener('click', () => { audioInit(); sfx('pop'); openBag(); });
 function renderBag(el) {
-  const tabs = [['collection', 'Collection'], ['garde', 'Garde-robe'], ['cles', 'Objets clés'], ['curio', 'Curiosités']];
+  if (bagTab === 'enquete' && !s2On()) bagTab = 'collection';
+  const tabs = [['collection', 'Collection'], ['garde', 'Garde-robe'], ['cles', 'Objets clés'], ['curio', 'Curiosités']].concat(s2On() ? [['enquete', 'Enquête']] : []);
   let h = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${bagTab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
   const sw = it => `<span class="sw" style="background:#${FINISH[it.finish].color.toString(16).padStart(6, '0')}"></span>`;
   if (bagTab === 'collection') {
@@ -3032,6 +4040,9 @@ function renderBag(el) {
     h += `<div class="big" style="margin-bottom:10px">Un objet clé par univers. Les six réunis… qui sait ?</div><div class="grid">` + KEY_UNIVERSES.map(u => S.keys[u.id]
       ? `<div class="card"><div class="t">${u.item}</div><div>${u.label}</div></div>`
       : `<div class="card ghost"><div class="t">???</div><div>${u.label}</div></div>`).join('') + `</div>`;
+    if (s2On()) h += `<div class="sec">Saison 2</div><div class="grid">` + S2_UNIVERS.map(u => s2State().keys[u.id] ? `<div class="card"><div class="t">${u.item}</div><div>${u.label}</div></div>` : `<div class="card ghost"><div class="t">???</div><div>${u.label}</div></div>`).join('') + `</div>`;
+  } else if (bagTab === 'enquete') {
+    // rempli par G.renderEnquete ci-dessous
   } else {
     const list = S.items.filter(i => (i.kind === 'bijou' && i.wonky) || i.kind === 'hybride');
     const cards = list.map(it => it.kind === 'hybride' ? `<div class="card"><div class="t">${esc(it.name)}</div><div>Hybride de la serre</div></div>` : `<div class="card"><div class="t">${esc(it.name)}</div><div>${sw(it)}${JTYPE[it.type].label} ${FINISH[it.finish].label}</div></div>`);
@@ -3040,6 +4051,7 @@ function renderBag(el) {
       : `<div class="big">Aucune curiosité… pour l'instant. Les ratages drôles viendront se ranger ici.</div>`;
   }
   el.innerHTML = h;
+  if (bagTab === 'enquete') G.renderEnquete(el, () => renderBag(el));
   el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; sfx('soft'); renderBag(el); });
   el.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { equip(+b.dataset.eq); renderBag(el); });
   el.querySelectorAll('[data-outfit]').forEach(b => b.onclick = () => { S.outfit = b.dataset.outfit; G.player.setOutfit(S.outfit); save(); sfx('sparkle'); renderBag(el); });
@@ -3049,10 +4061,11 @@ function renderBag(el) {
 $('#btnSet').addEventListener('click', () => { audioInit(); sfx('pop'); openPanel('Réglages', renderSettings); });
 function renderSettings(el) {
   const row = (k, l) => `<div class="toggle"><span>${l}</span><button class="btn small ${S.settings[k] ? 'on' : ''}" data-k="${k}">${S.settings[k] ? 'Activé' : 'Désactivé'}</button></div>`;
-  el.innerHTML = row('music', 'Musique douce') + row('sfx', 'Bruitages') + row('hints', 'Petits indices') +
+  el.innerHTML = row('music', 'Musique douce') + row('sfx', 'Bruitages') + row('hints', 'Petits indices') + s2SettingsHTML() +
     `<div class="sec">Ta partie est sauvegardée uniquement sur cet appareil, dans ce navigateur. Vider les données du navigateur l'efface.</div>
      <button class="btn" id="wipe" style="width:100%;margin-top:6px">Effacer ma partie</button>
-     <div class="sec" style="margin-top:18px">Le Mystère de Babylone · Version 1.1 · 2026-10-16<br>Aucun traceur, aucun cookie, aucune connexion.</div>`;
+     <div class="sec" style="margin-top:18px">Le Mystère de Babylone · Version 2.0 · 2026-10-17<br>Aucun traceur, aucun cookie, aucune connexion.</div>`;
+  s2BindSettings(el);
   el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
     const k = b.dataset.k, v = !S.settings[k];
     if (k === 'music') setMusic(v); else if (k === 'sfx') setSfx(v); else { S.settings.hints = v; save(); }
@@ -3071,7 +4084,8 @@ function startGame(isNew) {
   audioInit();
   $('#title').classList.add('hidden'); $('#hud').classList.remove('hidden');
   gardenTick(); cheeseTick();
-  G.player.setOutfit(S.outfit); G.player.setFrog(S.frog); G.player.refreshJewels(); updateKeysBadge();
+  G.player.setOutfit(S.outfit); G.player.setFrog(S.frog); G.player.refreshJewels(); updateKeysBadge(); updateS2Badge();
+  if (S.ended && !s2On()) setTimeout(() => G.unlockS2(true), 1800); // partie déjà terminée : la saison 2 s'ouvre
   if (isNew) { G.goArea('room', 'bed', true); G.paused = false; setTimeout(intro, 500); }
   else {
     G.goArea(S.area in G.areas ? S.area : 'room', null, true);
