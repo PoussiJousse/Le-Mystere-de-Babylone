@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Babylone">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Le Mystère de Babylone</title>
-<!-- Le Mystère de Babylone · Version 2.0 · généré le 2026-10-17
+<!-- Le Mystère de Babylone · Version 2.1 · généré le 2026-10-17
      Aucun traceur, aucun cookie, aucune requête réseau : tout reste sur l'appareil.
      three.js (MIT, Copyright 2010-2023 Three.js Authors) est inclus ci-dessous. -->
 <style>:root{
@@ -35,7 +35,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 #keysBadge{position:absolute;top:calc(14px + env(safe-area-inset-top));left:12px;background:rgba(47,38,64,.82);
   padding:8px 14px;border-radius:999px;font-size:14px;pointer-events:none}
 #s2Badge{position:absolute;top:calc(54px + env(safe-area-inset-top));left:12px;background:rgba(115,41,130,.85);
-  padding:7px 13px;border-radius:999px;font-size:13px;pointer-events:none;max-width:62vw}
+  padding:7px 13px;border-radius:999px;font-size:13px;pointer-events:auto;cursor:pointer;max-width:62vw;min-height:32px}
 #hint{position:absolute;top:calc(98px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-8px);
   max-width:86vw;background:rgba(251,246,238,.94);color:var(--ink);padding:10px 16px;border-radius:14px;font-size:15px;
   text-align:center;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
@@ -157,7 +157,7 @@ canvas.preview{display:block;width:100%;max-width:300px;height:auto;margin:6px a
       <button class="btn main" id="btnCont">Continuer</button>
       <button class="btn" id="btnRestart">Nouvelle partie</button>
     </div>
-    <div class="foot">Version 2.0 · 2026-10-17 · aucun traceur, aucun cookie</div>
+    <div class="foot">Version 2.1 · 2026-10-17 · aucun traceur, aucun cookie</div>
   </div>
 </div>
 
@@ -2837,7 +2837,7 @@ function updateS2Badge() {
   const b = $('#s2Badge'); if (!b) return; const z = s2State();
   if (!z.unlocked) { b.classList.add('hidden'); return; }
   b.classList.remove('hidden');
-  b.textContent = z.solved ? 'Glouglo est en sécurité' : `Indices : ${s2Clues()} / 5 · Mante Ra à ${s2Bonds()} bonds du bassin`;
+  b.textContent = z.solved ? 'Glouglo est en sécurité' : `Indices : ${s2Clues()} / 5 · Mante Ra à ${s2Bonds()} bonds du bassin ›`;
 }
 function giveS2Key(id, lines) {
   const z = s2State(), u = S2_UNIVERS.find(x => x.id === id);
@@ -2845,23 +2845,24 @@ function giveS2Key(id, lines) {
   dialog(lines.concat([{ name: u.npc, text: u.clue }, { text: `Indice noté dans ton enquête (${s2Clues() + 1} / 5).` }]), () => {
     z.keys[id] = true; z.clues[id] = true; save(); updateS2Badge(); sfx('chime'); sfx('sparkle');
     toast(`Objet obtenu : ${u.item} · Mante Ra est à ${s2Bonds()} bonds de Glouglo`);
-    if (s2Clues() >= 5 && !z.solved) setTimeout(() => showHint('Cinq indices ! Ouvre l\'onglet « Enquête » du sac et désigne la cachette de Mante Ra.', 9000), 2200);
+    if (s2Clues() >= 5 && !z.solved) setTimeout(() => showHint('Cinq indices ! Touche la bulle violette en haut à gauche pour ouvrir ton enquête… ou va fouiller l\'endroit que tu soupçonnes.', 10000), 2200);
   });
 }
 
 /* ---------- Onglet « Enquête » du sac ---------- */
 G.renderEnquete = function (el, rerender) {
   const z = s2State(), n = s2Clues();
-  let h = `<div class="big" style="margin-bottom:6px">${z.solved ? 'Affaire résolue : Mante Ra est redevenue danseuse, et Glouglo nage tranquille.' : 'Où se cache Mante Ra ? Récolte un indice dans chacun des 5 nouveaux lieux.'}</div>`;
+  let h = `<div class="big" style="margin-bottom:6px">${z.solved ? 'Affaire résolue : Mante Ra est redevenue danseuse, et Glouglo nage tranquille.' : n >= 5 ? 'Tu as les 5 indices ! Relis-les, puis désigne la cachette avec le bouton juste en dessous. Tu peux aussi aller fouiller directement l\'endroit que tu soupçonnes.' : 'Où se cache Mante Ra ? Récolte un indice dans chacun des 5 nouveaux lieux.'}</div>`;
   if (!z.solved) {
     const pct = (10 - s2Bonds()) / 8 * 100;
     h += `<div class="step">Distance entre Mante Ra et le bassin de Glouglo : ${s2Bonds()} bonds</div><div class="prog"><div style="width:${pct}%;background:#97C459"></div></div>`;
   }
+  // v2.1 : le bouton est en haut (sur téléphone, il était caché sous les 5 indices)
+  if (!z.solved && n >= 5 && !z.accused) h += `<button class="btn main" id="s2Accuse" style="width:100%;margin:10px 0 4px;min-height:56px">Désigner la cachette de Mante Ra</button>`;
+  if (!z.solved && z.accused) h += `<div class="card" style="margin:10px 0 4px;border:2px solid #F6C26B"><div class="t">Cachette trouvée !</div><div>Cours au cinéma et ouvre la machine à popcorn.</div></div>`;
   h += S2_UNIVERS.map(u => z.clues[u.id]
     ? `<div class="card" style="margin-top:8px"><div class="t">${u.npc} · ${u.label}</div><div>${u.clue}</div></div>`
     : `<div class="card ghost" style="margin-top:8px"><div class="t">???</div><div>Indice à trouver : ${u.label}</div></div>`).join('');
-  if (!z.solved && n >= 5 && !z.accused) h += `<button class="btn main" id="s2Accuse" style="width:100%;margin-top:14px;min-height:56px">Désigner la cachette de Mante Ra</button>`;
-  if (!z.solved && z.accused) h += `<div class="card" style="margin-top:12px;border:2px solid #F6C26B"><div class="t">Cachette trouvée !</div><div>Cours au cinéma et ouvre la machine à popcorn.</div></div>`;
   h += `<div class="sec">Objets de la saison 2</div><div class="grid">` + S2_UNIVERS.map(u => z.keys[u.id] ? `<div class="card"><div class="t">${u.item}</div><div>${u.label}</div></div>` : `<div class="card ghost"><div class="t">???</div><div>${u.label}</div></div>`).join('') + `</div>`;
   el.insertAdjacentHTML('beforeend', h);
   const b = el.querySelector('#s2Accuse'); if (b) b.onclick = () => openAccuse(rerender);
@@ -2977,6 +2978,9 @@ function resultView(el, title, name, sub, btns) {
     <div class="row">${btns.map((b, i) => `<button class="btn ${i === 0 ? 'main' : ''}" data-rb="${i}" style="flex:1;min-height:52px">${b[0]}</button>`).join('')}</div>`;
   el.querySelectorAll('[data-rb]').forEach(b => b.onclick = () => btns[+b.dataset.rb][1]());
 }
+
+/* v2.1 : la bulle violette ouvre directement l'onglet Enquête */
+$('#s2Badge').addEventListener('click', e => { e.stopPropagation(); if (G.paused || G.dialogOpen) return; audioInit(); sfx('pop'); openBag('enquete'); });
 
 /* ============ S2 · La salle de sport de Hal Tère : on bouge pour le plaisir, jamais pour la performance ============ */
 const GYM = {
@@ -3354,6 +3358,7 @@ function playFilm(f) {
 G.onPopcornMachine = function () {
   const z = s2State();
   if (z.accused && !z.solved) { G.popcornConfront(); return; }
+  if (z.unlocked && !z.solved && s2Clues() >= 5) { z.accused = true; save(); G.popcornConfront(); return; } // v2.1 : bonne déduction = on la trouve directement
   if (z.unlocked && !z.solved && Math.random() < 0.35) { dialog([{ text: 'Crunch… crunch… La machine fait des bruits toute seule. Bizarre. Tu préfères ne pas trop y penser.' }]); return; }
   const a = G.areas.cinema, c = cineState();
   openPanel('La machine à popcorn', el => {
@@ -4064,7 +4069,7 @@ function renderSettings(el) {
   el.innerHTML = row('music', 'Musique douce') + row('sfx', 'Bruitages') + row('hints', 'Petits indices') + s2SettingsHTML() +
     `<div class="sec">Ta partie est sauvegardée uniquement sur cet appareil, dans ce navigateur. Vider les données du navigateur l'efface.</div>
      <button class="btn" id="wipe" style="width:100%;margin-top:6px">Effacer ma partie</button>
-     <div class="sec" style="margin-top:18px">Le Mystère de Babylone · Version 2.0 · 2026-10-17<br>Aucun traceur, aucun cookie, aucune connexion.</div>`;
+     <div class="sec" style="margin-top:18px">Le Mystère de Babylone · Version 2.1 · 2026-10-17<br>Aucun traceur, aucun cookie, aucune connexion.</div>`;
   s2BindSettings(el);
   el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
     const k = b.dataset.k, v = !S.settings[k];

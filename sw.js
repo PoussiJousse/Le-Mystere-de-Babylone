@@ -1,7 +1,7 @@
-/* Le Mystère de Babylone · v2.0 · 2026-10-17
+/* Le Mystère de Babylone · v2.1 · 2026-10-17
    Service worker hors ligne : met en cache UNIQUEMENT les fichiers du jeu (même site). Aucune autre connexion.
    v2.0 : la page du jeu est demandée d'abord au site (mise à jour immédiate), le cache sert seulement hors connexion. */
-const CACHE = 'mdb-v2.0';
+const CACHE = 'mdb-v2.1';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
